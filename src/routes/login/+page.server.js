@@ -78,12 +78,18 @@ export const actions = {
 		});
 
 		if (error) {
-			return fail(400, { message: error.message, mode: 'reset' });
+			// ⚠️ Security: Don't reveal whether email exists
+			console.warn(`[AUTH] Password reset request failed for ${resolved.email}:`, error.message);
+			return {
+				success: true,
+				message: 'If this RAC member number is registered, password reset instructions have been sent to your registered email.',
+				mode: 'reset'
+			};
 		}
 
 		return {
 			success: true,
-			message: `If ${resolved.rac} is registered, reset instructions were sent.`,
+			message: 'If this RAC member number is registered, password reset instructions have been sent to your registered email.',
 			mode: 'reset'
 		};
 	},

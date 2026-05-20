@@ -23,6 +23,19 @@ function createResendClient() {
 	return new Resend(env.RESEND_API_KEY);
 }
 
+/**
+ * Sanitize user input to prevent XSS and injection attacks
+ * @param {string} str
+ * @returns {string}
+ */
+function sanitizeInput(str) {
+	return String(str)
+		.trim()
+		.slice(0, 500)
+		.replace(/[<>"']/g, '') // Remove HTML/script characters
+		.replace(/\s+/g, ' '); // Normalize whitespace
+}
+
 /** @type {import('./$types').PageServerLoad} */
 export async function load() {
 	return {};
@@ -32,16 +45,13 @@ export async function load() {
 export const actions = {
 	apply: async ({ request }) => {
 		const formData = await request.formData();
-		const fullName = String(formData.get('full_name') ?? '');
-		const email = String(formData.get('email') ?? '');
-		const phone = String(formData.get('phone') ?? '');
+		const fullName = sanitizeInput(String(formData.get('full_name') ?? ''));
+		const email = String(formData.get('email') ?? '').toLowerCase().trim();
+		const phone = sanitizeInput(String(formData.get('phone') ?? ''));
 		const age = String(formData.get('age') ?? '');
-		const occupation = String(formData.get('occupation') ?? '');
-		const motivation = String(formData.get('motivation') ?? '');
-		const skills = String(formData.get('skills') ?? '');
-
-		// Validation
-		if (!fullName || !email || !phone || !age || !occupation || !motivation) {
+		const occupation = sanitizeInput(String(formData.get('occupation') ?? ''));
+		const motivation = sanitizeInput(String(formData.get('motivation') ?? ''));
+		const skills = sanitizeInput(String(formData.get('skills') ?? ''));
 			return fail(400, { 
 				message: 'Please fill in all required fields.', 
 				mode: 'apply' 
@@ -143,14 +153,20 @@ export const actions = {
 			const resend = createResendClient();
 
 			if (resend) {
-				await resend.emails.send({
-					from: 'noreply@rotaractlilongwe.org',
-					to: email,
-					subject: 'Application Received - Rotaract Club of Lilongwe',
-					html: applicantEmailHtml
-				});
+				try {
+					await resend.emails.send({
+						from: 'noreply@rotaractlilongwe.org',
+						to: email,
+						subject: 'Application Received - Rotaract Club of Lilongwe',
+						html: applicantEmailHtml
+					});
+					console.log(`[EMAIL] Confirmation sent to ${email}`);
+				} catch (emailError) {
+					console.error('[EMAIL] Failed to send confirmation email:', emailError.message);
+					// Application still succeeds, but track the issue
+				}
 			} else {
-				console.warn('RESEND_API_KEY is not configured; skipping applicant confirmation email.');
+				console.warn('[EMAIL] RESEND_API_KEY is not configured; skipping applicant confirmation email.');
 			}
 
 			// Send notification email to admin
@@ -191,12 +207,18 @@ export const actions = {
 			`;
 
 			if (resend) {
-				await resend.emails.send({
-					from: 'noreply@rotaractlilongwe.org',
-					to: 'info@rotaractlilongwe.org',
-					subject: `New Application: ${fullName}`,
-					html: adminEmailHtml
-				});
+				try {
+					await resend.emails.send({
+						from: 'noreply@rotaractlilongwe.org',
+						to: 'info@rotaractlilongwe.org',
+						subject: `New Application: ${fullName}`,
+						html: adminEmailHtml
+					});
+					console.log(`[EMAIL] Admin notification sent for ${fullName}`);
+				} catch (emailError) {
+					console.error('[EMAIL] Failed to send admin notification:', emailError.message);
+					// Admin notification failure is not critical to the user experience
+				}
 			}
 
 			return {
