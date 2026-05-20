@@ -9,7 +9,13 @@ const ICON_MAP_KEYS = ['Handshake', 'Globe2', 'Briefcase', 'Globe'];
 const ABOUT_TEAM_BUCKET = 'RAC';
 const ABOUT_TEAM_FOLDER = 'about';
 const ABOUT_TEAM_IMAGE_RE = /\.(avif|gif|jpe?g|png|webp)$/i;
-const ABOUT_TEAM_PUBLIC_URL = `${PUBLIC_SUPABASE_URL}/storage/v1/object/public/${ABOUT_TEAM_BUCKET}/${ABOUT_TEAM_FOLDER}`;
+const ABOUT_TEAM_CACHE_MS = 10 * 60 * 1000;
+const ABOUT_TEAM_IMAGE_WIDTH = 960;
+const ABOUT_TEAM_IMAGE_QUALITY = 72;
+const ABOUT_TEAM_PUBLIC_URL = `${PUBLIC_SUPABASE_URL}/storage/v1/render/image/public/${ABOUT_TEAM_BUCKET}/${ABOUT_TEAM_FOLDER}`;
+
+let cachedAboutTeamImages = [];
+let cachedAboutTeamImagesUntil = 0;
 
 function parseCSV(text) {
   function splitLine(line) {
@@ -65,6 +71,11 @@ function imageAltFromFileName(name) {
 }
 
 async function fetchAboutTeamImages() {
+  const now = Date.now();
+  if (cachedAboutTeamImagesUntil > now) {
+    return cachedAboutTeamImages;
+  }
+
   const supabase = createStorageClient();
 
   if (!supabase) {
@@ -81,15 +92,18 @@ async function fetchAboutTeamImages() {
 
   if (error) {
     console.error('fetchAboutTeamImages failed:', error.message);
-    return [];
+    return cachedAboutTeamImages;
   }
 
-  return (files ?? [])
+  cachedAboutTeamImages = (files ?? [])
     .filter((file) => ABOUT_TEAM_IMAGE_RE.test(file.name))
     .map((file) => ({
-      src: `${ABOUT_TEAM_PUBLIC_URL}/${encodeURIComponent(file.name)}`,
+      src: `${ABOUT_TEAM_PUBLIC_URL}/${encodeURIComponent(file.name)}?width=${ABOUT_TEAM_IMAGE_WIDTH}&quality=${ABOUT_TEAM_IMAGE_QUALITY}&resize=cover`,
       alt: imageAltFromFileName(file.name)
     }));
+  cachedAboutTeamImagesUntil = now + ABOUT_TEAM_CACHE_MS;
+
+  return cachedAboutTeamImages;
 }
 
 /** @type {import('./$types').PageServerLoad} */

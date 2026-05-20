@@ -154,9 +154,7 @@
     <!-- Left panel -->
     <div class="login-brand">
       <div class="brand-inner">
-        <div class="brand-badge">MEMBER PORTAL</div>
         <h1 class="brand-headline">YOUR IMPACT<br/><span class="brand-pink">STARTS HERE.</span></h1>
-
       </div>
     </div>
 
@@ -490,9 +488,12 @@
 
   /* Brand panel */
   .login-brand {
-    flex: 1; background: var(--near-black);
-    display: flex; align-items: center; justify-content: center;
-    padding: 80px 5vw 80px 6vw;
+    flex: 1; background:#e8175dc1;
+    background-image: url("https://iksjnarreymddybgpmte.supabase.co/storage/v1/object/public/RAC/RAC/bg.jpg");
+    background-size: cover;
+    background-position: bottom;
+    background-blend-mode: multiply;
+    display: flex; align-items: start; justify-content: center;
     position: relative; overflow: hidden;
   }
   .login-brand::before {
@@ -506,12 +507,12 @@
     background: rgba(232,23,93,.15); border: 1px solid rgba(232,23,93,.35);
     color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif;
     font-size: 11px; font-weight: 700; letter-spacing: 2px;
-    padding: 5px 14px; border-radius: 100px; margin-bottom: 32px;
+    border-radius: 100px; 
   }
-  .brand-headline {
+  .brand-headline {   
     font-family: 'Anton', sans-serif;
     font-size: clamp(40px, 5vw, 68px); color: white;
-    line-height: .95; margin-bottom: 24px; letter-spacing: -1px;
+    line-height: .95; letter-spacing: -1px;
   }
   .brand-pink { color: var(--primary); }
   .brand-sub {

@@ -132,6 +132,21 @@
     aboutTeamSwipeStartY = 0;
   }
 
+  function getAboutTeamSlideOffset(index) {
+    const total = aboutTeamImages.length;
+    if (total <= 1) return 0;
+
+    let offset = index - activeAboutTeamImageIndex;
+    if (offset > total / 2) offset -= total;
+    if (offset < -total / 2) offset += total;
+
+    return offset;
+  }
+
+  function shouldLoadAboutTeamImage(index) {
+    return Math.abs(getAboutTeamSlideOffset(index)) <= 1;
+  }
+
   onMount(() => {
     const handler = () => { scrolled = window.scrollY > 60; };
     const aboutTeamTimer = window.setInterval(() => {
@@ -203,7 +218,7 @@
             Empowering young leaders. Transforming communities in Lilongwe and beyond — under the banner of Rotary International.
           </p>
           <div class="hero-ctas">
-            <a href="/Projects" class="btn-primary">Explore Projects →</a>
+            <a href="/projects" class="btn-primary">Explore Projects →</a>
             <a href="/join" class="btn-outline-white">Join the Club</a>
           </div>
           <div class="malawi-pin">
@@ -293,13 +308,17 @@
         >
           {#if aboutTeamImages.length}
             {#each aboutTeamImages as image, index}
-              <img
-                class:active={index === activeAboutTeamImageIndex}
-                src={image.src}
-                alt={image.alt}
-                loading={index === 0 ? 'eager' : 'lazy'}
-                style:transform={`translateX(${(index - activeAboutTeamImageIndex) * 100}%)`}
-              />
+              {#if shouldLoadAboutTeamImage(index)}
+                <img
+                  class:active={index === activeAboutTeamImageIndex}
+                  src={image.src}
+                  alt={image.alt}
+                  loading={index === activeAboutTeamImageIndex ? 'eager' : 'lazy'}
+                  decoding="async"
+                  fetchpriority={index === activeAboutTeamImageIndex ? 'high' : 'low'}
+                  style:transform={`translateX(${getAboutTeamSlideOffset(index) * 100}%)`}
+                />
+              {/if}
             {/each}
           {:else}
             <div class="about-team-carousel-placeholder" aria-hidden="true"></div>
