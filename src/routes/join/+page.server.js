@@ -52,6 +52,8 @@ export const actions = {
 		const occupation = sanitizeInput(String(formData.get('occupation') ?? ''));
 		const motivation = sanitizeInput(String(formData.get('motivation') ?? ''));
 		const skills = sanitizeInput(String(formData.get('skills') ?? ''));
+
+		if (!fullName || !email || !phone || !age || !occupation || !motivation || !skills) {
 			return fail(400, { 
 				message: 'Please fill in all required fields.', 
 				mode: 'apply' 
