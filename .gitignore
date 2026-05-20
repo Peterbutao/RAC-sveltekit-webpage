@@ -60,5 +60,9 @@ logs/
 .codex-dev.out
 .vscode/
 .gitognore 
+ADMIN_SETUP.md
+CODE_REVIEW.md
+FIXES_APPLIED.md
+PRODUCTION_CHECKLIST.md
 # .codex-dev.err
 # .code-dev.out 

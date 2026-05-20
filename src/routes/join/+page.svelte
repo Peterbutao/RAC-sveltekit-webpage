@@ -42,38 +42,7 @@
 
   <div class="join-split">
     <!-- Left panel -->
-    <div class="join-brand">
-      <div class="brand-inner">
-        <h1 class="brand-headline">BECOME A<br/><span class="brand-pink">CHANGEMAKER</span></h1>
-        <p class="brand-sub">
-          Join a community of young professionals dedicated to service, leadership, and professional development. Make a difference in Lilongwe and beyond.
-        </p>
-        
-        <div class="benefits-list">
-          <div class="benefit-item">
-            <span class="benefit-icon">🌍</span>
-            <div>
-              <p class="benefit-title">Community Service</p>
-              <p class="benefit-desc">Impact local communities through meaningful projects</p>
-            </div>
-          </div>
-          <div class="benefit-item">
-            <span class="benefit-icon">💼</span>
-            <div>
-              <p class="benefit-title">Professional Growth</p>
-              <p class="benefit-desc">Develop leadership and career skills</p>
-            </div>
-          </div>
-          <div class="benefit-item">
-            <span class="benefit-icon">🤝</span>
-            <div>
-              <p class="benefit-title">Network</p>
-              <p class="benefit-desc">Connect with like-minded young professionals</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+
 
     <!-- Right panel — form -->
     <div class="join-form-panel">
@@ -189,6 +158,40 @@
         </div>
       </div>
     </div>
+
+    <div class="join-brand">
+      <div class="brand-inner">
+        <h1 class="brand-headline">BECOME A<br/><span class="brand-pink">CHANGEMAKER</span></h1>
+        <p class="brand-sub">
+          Join a community of young professionals dedicated to service, leadership, and professional development. Make a difference in Lilongwe and beyond.
+        </p>
+        
+        <div class="benefits-list">
+          <div class="benefit-item">
+            <span class="benefit-icon">🌍</span>
+            <div>
+              <p class="benefit-title">Community Service</p>
+              <p class="benefit-desc">Impact local communities through meaningful projects</p>
+            </div>
+          </div>
+          <div class="benefit-item">
+            <span class="benefit-icon">💼</span>
+            <div>
+              <p class="benefit-title">Professional Growth</p>
+              <p class="benefit-desc">Develop leadership and career skills</p>
+            </div>
+          </div>
+          <div class="benefit-item">
+            <span class="benefit-icon">🤝</span>
+            <div>
+              <p class="benefit-title">Network</p>
+              <p class="benefit-desc">Connect with like-minded young professionals</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </main>
 
