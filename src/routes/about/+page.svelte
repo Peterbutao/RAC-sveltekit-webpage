@@ -312,7 +312,7 @@
   </section>
 </main>
 <section class="about-hero">
-  <img class="hero-photo" src="/event%20(9).jpg" alt="Rotaract Club of Lilongwe members at a club event" />
+  <img class="hero-photo" src="{logo}" alt="Rotaract Club of Lilongwe members at a club event" />
   <div class="hero-shade"></div>
   <div class="hero-inner">
     <div class="hero-copy">

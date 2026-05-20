@@ -1,7 +1,15 @@
 // ── Constants ────────────────────────────────────────────────────────────────
+import { createClient } from '@supabase/supabase-js';
+import { env } from '$env/dynamic/private';
+import { PUBLIC_SUPABASE_ANON_KEY, PUBLIC_SUPABASE_URL } from '$env/static/public';
+
 const SHEET_ID = '1kN76ZIpPbE5KhKvSA0lLtrCpdechOWT1qlhHT7DtmRg';
 
 const ICON_MAP_KEYS = ['Handshake', 'Globe2', 'Briefcase', 'Globe'];
+const ABOUT_TEAM_BUCKET = 'RAC';
+const ABOUT_TEAM_FOLDER = 'about';
+const ABOUT_TEAM_IMAGE_RE = /\.(avif|gif|jpe?g|png|webp)$/i;
+const ABOUT_TEAM_PUBLIC_URL = `${PUBLIC_SUPABASE_URL}/storage/v1/object/public/${ABOUT_TEAM_BUCKET}/${ABOUT_TEAM_FOLDER}`;
 
 function parseCSV(text) {
   function splitLine(line) {
@@ -40,14 +48,59 @@ async function fetchSheet(name) {
   return parseCSV(text);
 }
 
+function createStorageClient() {
+  const supabaseUrl = env.SUPABASE_URL ?? PUBLIC_SUPABASE_URL;
+  const storageKey = env.SUPABASE_SERVICE_ROLE_KEY ?? PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !storageKey) return null;
+
+  return createClient(supabaseUrl, storageKey, {
+    auth: { persistSession: false }
+  });
+}
+
+function imageAltFromFileName(name) {
+  const label = name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
+  return label ? `Rotaract Club of Lilongwe team photo - ${label}` : 'Rotaract Club of Lilongwe team photo';
+}
+
+async function fetchAboutTeamImages() {
+  const supabase = createStorageClient();
+
+  if (!supabase) {
+    console.error('Supabase storage client is not configured.');
+    return [];
+  }
+
+  const { data: files, error } = await supabase.storage
+    .from(ABOUT_TEAM_BUCKET)
+    .list(ABOUT_TEAM_FOLDER, {
+      limit: 100,
+      sortBy: { column: 'name', order: 'asc' }
+    });
+
+  if (error) {
+    console.error('fetchAboutTeamImages failed:', error.message);
+    return [];
+  }
+
+  return (files ?? [])
+    .filter((file) => ABOUT_TEAM_IMAGE_RE.test(file.name))
+    .map((file) => ({
+      src: `${ABOUT_TEAM_PUBLIC_URL}/${encodeURIComponent(file.name)}`,
+      alt: imageAltFromFileName(file.name)
+    }));
+}
+
 /** @type {import('./$types').PageServerLoad} */
 export async function load() {
-  const [PROJECTS, STATS, rawAvenues, EVENTS, rawFooter] = await Promise.all([
+  const [PROJECTS, STATS, rawAvenues, EVENTS, rawFooter, ABOUT_TEAM_IMAGES] = await Promise.all([
     fetchSheet('PROJECTS'),
     fetchSheet('STATS'),
     fetchSheet('AVENUES'),
     fetchSheet('EVENTS'),
     fetchSheet('FOOTER_COLS'),
+    fetchAboutTeamImages(),
   ]);
 
   // Keep icon as a string key — the component mapping happens client-side
@@ -63,5 +116,5 @@ export async function load() {
     links: col.links ? col.links.split(',').map(l => l.trim()) : [],
   }));
 
-  return { PROJECTS, STATS, AVENUES, EVENTS, FOOTER_COLS };
+  return { PROJECTS, STATS, AVENUES, EVENTS, FOOTER_COLS, ABOUT_TEAM_IMAGES };
 }

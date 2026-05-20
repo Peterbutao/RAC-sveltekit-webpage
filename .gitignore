@@ -60,3 +60,5 @@ logs/
 .codex-dev.out
 .vscode/
 .gitognore 
+# .codex-dev.err
+# .code-dev.out 

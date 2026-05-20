@@ -20,7 +20,6 @@
 
   // ── Constants ────────────────────────────────────────────────────────────────
   const PRIMARY  = '#E8175D';
-
   const NAV_LINKS = [
     { label: 'Home', href: '/' },
     { label: 'About', href: '/about' },
@@ -45,8 +44,16 @@
   let selectedEventIndex = null;
   let touchStartX = 0;
   let touchStartY = 0;
+  let aboutTeamImages = [];
+  let activeAboutTeamImageIndex = 0;
+  let aboutTeamSwipeStartX = 0;
+  let aboutTeamSwipeStartY = 0;
 
   $: activeEvent = selectedEventIndex === null ? null : EVENTS[selectedEventIndex] ?? null;
+  $: aboutTeamImages = data.ABOUT_TEAM_IMAGES ?? [];
+  $: if (aboutTeamImages.length && activeAboutTeamImageIndex >= aboutTeamImages.length) {
+    activeAboutTeamImageIndex = 0;
+  }
 
   const eventPoster = (event) => event?.fileName ? `/${event.fileName}` : '';
   const eventMonth = (event) => event?.date?.split(' ')[0] ?? '';
@@ -98,11 +105,43 @@
     touchStartY = 0;
   }
 
+  function showPreviousAboutTeamImage() {
+    if (aboutTeamImages.length === 0) return;
+    activeAboutTeamImageIndex = (activeAboutTeamImageIndex - 1 + aboutTeamImages.length) % aboutTeamImages.length;
+  }
+
+  function showNextAboutTeamImage() {
+    if (aboutTeamImages.length === 0) return;
+    activeAboutTeamImageIndex = (activeAboutTeamImageIndex + 1) % aboutTeamImages.length;
+  }
+
+  function handleAboutTeamSwipeStart(event) {
+    aboutTeamSwipeStartX = event.clientX;
+    aboutTeamSwipeStartY = event.clientY;
+  }
+
+  function handleAboutTeamSwipeEnd(event) {
+    const diffX = event.clientX - aboutTeamSwipeStartX;
+    const diffY = event.clientY - aboutTeamSwipeStartY;
+
+    if (Math.abs(diffX) > 45 && Math.abs(diffX) > Math.abs(diffY)) {
+      diffX > 0 ? showPreviousAboutTeamImage() : showNextAboutTeamImage();
+    }
+
+    aboutTeamSwipeStartX = 0;
+    aboutTeamSwipeStartY = 0;
+  }
+
   onMount(() => {
     const handler = () => { scrolled = window.scrollY > 60; };
+    const aboutTeamTimer = window.setInterval(() => {
+      showNextAboutTeamImage();
+    }, 4200);
+
     window.addEventListener('scroll', handler);
     return () => {
       window.removeEventListener('scroll', handler);
+      window.clearInterval(aboutTeamTimer);
       document.body.style.overflow = '';
     };
   });
@@ -237,11 +276,50 @@
         SERVICE
       </h2>
       <p class="about-body">
-        The Rotaract Club of Lilongwe is a community of young professionals and students aged 18–30, united by a commitment to service and leadership. Sponsored by the Rotary Club of Lilongwe and proudly part of Rotary International's District 9210 — covering Malawi, Zambia, Zimbabwe, and Mozambique — we sit at the heart of a powerful regional network.
+        From peri-urban development,health outreach camps, youth mentorship, and vocational skills programmes, we turn youth-led ideas into tangible change — right here in Lilongwe's communities and beyond.
       </p>
-      <p class="about-body">
-        From peri-urban development in Senti to health outreach camps, youth mentorship, and vocational skills programmes, we turn youth-led ideas into tangible change — right here in Lilongwe's communities and beyond.
-      </p>
+      <div class="about-team-carousel-wrap">
+        <div
+          class="about-team-carousel"
+          role="region"
+          aria-roledescription="carousel"
+          aria-label="Rotaract Club of Lilongwe team photos"
+          on:pointerdown={handleAboutTeamSwipeStart}
+          on:pointerup={handleAboutTeamSwipeEnd}
+          on:pointercancel={() => {
+            aboutTeamSwipeStartX = 0;
+            aboutTeamSwipeStartY = 0;
+          }}
+        >
+          {#if aboutTeamImages.length}
+            {#each aboutTeamImages as image, index}
+              <img
+                class:active={index === activeAboutTeamImageIndex}
+                src={image.src}
+                alt={image.alt}
+                loading={index === 0 ? 'eager' : 'lazy'}
+                style:transform={`translateX(${(index - activeAboutTeamImageIndex) * 100}%)`}
+              />
+            {/each}
+          {:else}
+            <div class="about-team-carousel-placeholder" aria-hidden="true"></div>
+          {/if}
+        </div>
+
+        {#if aboutTeamImages.length > 1}
+          <div class="about-team-carousel-dots" aria-label="Choose team photo">
+            {#each aboutTeamImages as image, index}
+              <button
+                type="button"
+                class:active={index === activeAboutTeamImageIndex}
+                aria-label={`Show ${image.alt}`}
+                aria-current={index === activeAboutTeamImageIndex ? 'true' : undefined}
+                on:click={() => activeAboutTeamImageIndex = index}
+              ></button>
+            {/each}
+          </div>
+        {/if}
+      </div>
       <div class="about-quote">
         <span>"Turning youth-led ideas into global impact."</span>
       </div>
@@ -677,6 +755,26 @@
   .section-pill { display: inline-block; background: rgba(232,23,93,.1); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 700; padding: 4px 14px; border-radius: 100px; letter-spacing: 1.5px; margin-bottom: 24px; }
   .about-heading { font-family: 'Anton', sans-serif; font-size: clamp(44px, 6vw, 80px); color: var(--near-black); line-height: .9; margin-bottom: 32px; }
   .about-body { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 15px; color: rgba(26,26,26,.7); line-height: 1.8; margin-bottom: 20px; }
+  .about-team-carousel-wrap { margin: 0 0 28px; }
+  .about-team-carousel { position: relative; width: 100%; aspect-ratio: 16 / 10; overflow: hidden; border-radius: 8px; background: rgba(232,23,93,.08); box-shadow: 0 18px 46px rgba(26,26,26,.12); cursor: grab; touch-action: pan-y; user-select: none; }
+  .about-team-carousel:active { cursor: grabbing; }
+  .about-team-carousel > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .58s ease; will-change: transform; }
+  .about-team-carousel > img.active { z-index: 1; }
+  .about-team-carousel-dots { display: flex; justify-content: center; align-items: center; gap: 8px; padding-top: 14px; }
+  .about-team-carousel-dots button { width: 9px; height: 9px; border-radius: 999px; background: rgba(26,26,26,.22); cursor: pointer; transition: width .2s ease, background .2s ease, transform .2s ease; }
+  .about-team-carousel-dots button:hover { background: rgba(232,23,93,.6); transform: translateY(-1px); }
+  .about-team-carousel-dots button.active { width: 24px; background: var(--primary); }
+  .about-team-carousel-dots button:focus-visible { outline: 3px solid rgba(232,23,93,.35); outline-offset: 3px; }
+  .about-team-carousel-placeholder { position: absolute; inset: 0; background: linear-gradient(120deg, rgba(232,23,93,.12), rgba(255,255,255,.55), rgba(232,23,93,.08)); background-size: 220% 100%; animation: about-carousel-loading 1.4s ease-in-out infinite; }
+  @keyframes about-carousel-loading {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .about-team-carousel > img,
+    .about-team-carousel-dots button,
+    .about-team-carousel-placeholder { transition: none; animation: none; }
+  }
   .about-quote { margin-top: 32px; padding-left: 20px; border-left: 3px solid var(--primary); }
   .about-quote span { font-family: 'Caveat', cursive; font-size: 22px; color: var(--near-black); }
   .about-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
