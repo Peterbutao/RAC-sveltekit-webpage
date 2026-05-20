@@ -1,0 +1,228 @@
+:root {
+  --primary: #E8175D;
+  --dark-magenta: #8B1045;
+  --near-black: #1A1A1A;
+  --cream: #F5F0EB;
+  --orange: #F7A13A;
+  --success: #2A9D8F;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  background: var(--cream);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  background: none;
+  border: none;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -600px 0;
+  }
+
+  100% {
+    background-position: 600px 0;
+  }
+}
+
+@keyframes slow-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin-slow {
+  animation: slow-spin 13s linear infinite;
+}
+
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: transparent;
+  padding: 0 5vw;
+  transition: background .4s ease, backdrop-filter .4s ease, box-shadow .4s ease;
+}
+
+.navbar.scrolled {
+  background: rgba(217, 217, 217, .4);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 2px 24px rgba(232, 23, 93, .08);
+}
+
+.navbar-inner {
+  max-width: 1200px;
+  height: 72px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.auth-navbar {
+  background: rgba(217, 217, 217, .4);
+  transition: box-shadow .3s ease;
+}
+
+.auth-navbar.scrolled {
+  background: rgba(217, 217, 217, .4);
+  backdrop-filter: none;
+  box-shadow: 0 2px 24px rgba(0, 0, 0, .18);
+}
+
+.auth-navbar .navbar-inner {
+  max-width: 1280px;
+  height: 64px;
+}
+
+.logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.image-logo,
+.logo-image {
+  display: inline-flex;
+  width: 30px;
+}
+
+.logo-gear {
+  display: flex;
+}
+
+.image-logo img,
+.logo-image img {
+  width: 100%;
+}
+
+.logo-tagline {
+  font-family: 'Anton', sans-serif;
+  font-size: 13px;
+  color: var(--primary);
+  letter-spacing: 2px;
+  line-height: 1;
+}
+
+.logo-name {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 11px;
+  color: var(--near-black);
+  font-weight: 600;
+  letter-spacing: .5px;
+}
+
+.auth-navbar .logo-tagline {
+  font-size: 12px;
+}
+
+.auth-navbar .logo-name {
+  font-size: 10px;
+  letter-spacing: 0;
+}
+
+.desktop-nav {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.nav-link {
+  color: white;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .3px;
+  text-decoration: none;
+  transition: color .2s ease;
+}
+
+.nav-link.scrolled {
+  color: var(--near-black);
+}
+
+.nav-link.active,
+.nav-link:hover {
+  color: var(--primary) !important;
+}
+
+.btn-login {
+  background: var(--primary);
+  color: white;
+  padding: 9px 20px;
+  border-radius: 100px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .3px;
+  text-decoration: none;
+  box-shadow: 0 4px 16px rgba(232, 23, 93, .3);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.btn-login:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(232, 23, 93, .4);
+}
+
+.nav-back {
+  color: rgba(255, 255, 255, .6);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color .2s ease;
+}
+
+.nav-back:hover {
+  color: var(--primary);
+}
+
+.nav-member-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-logout {
+  background: rgba(255, 255, 255, .1);
+  border: 1px solid rgba(255, 255, 255, .15);
+  color: var(--primary);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: background .2s ease, color .2s ease;
+}
+
+.nav-logout:hover {
+  background: rgba(232, 23, 93, .2);
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .desktop-nav {
+    display: none;
+  }
+}
