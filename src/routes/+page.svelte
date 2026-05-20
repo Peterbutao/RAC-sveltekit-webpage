@@ -746,9 +746,9 @@
   .headline-cursive { font-family: 'Caveat', cursive; font-size: clamp(44px, 7vw, 90px); color: var(--orange); }
   .hero-sub { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 16px; color: rgba(255,255,255,.7); line-height: 1.7; max-width: 480px; margin-bottom: 40px; }
   .hero-ctas { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 48px; }
-  .btn-primary { background: var(--primary); color: white; padding: 14px 36px; border-radius: 100px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; font-weight: 800; text-decoration: none; letter-spacing: .3px; box-shadow: 0 8px 32px rgba(232,23,93,.4); transition: transform .2s; }
+  .btn-primary { display: inline-block; background: var(--primary); color: white; padding: 14px 36px; border-radius: 100px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; font-weight: 800; text-decoration: none; letter-spacing: .3px; box-shadow: 0 8px 32px rgba(232,23,93,.4); transition: transform .2s; cursor: pointer; }
   .btn-primary:hover { transform: translateY(-2px); }
-  .btn-outline-white { border: 2px solid rgba(255,255,255,.4); color: white; padding: 14px 36px; border-radius: 100px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; font-weight: 700; text-decoration: none; transition: border-color .2s; }
+  .btn-outline-white { display: inline-block; border: 2px solid rgba(255,255,255,.4); color: white; padding: 14px 36px; border-radius: 100px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; font-weight: 700; text-decoration: none; transition: border-color .2s; cursor: pointer; }
   .btn-outline-white:hover { border-color: white; }
   .malawi-pin { display: inline-flex; align-items: center; gap: 8px; }
   .malawi-label { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; color: rgba(255,255,255,.5); font-weight: 600; letter-spacing: 1px; }
