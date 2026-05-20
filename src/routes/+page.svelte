@@ -265,6 +265,12 @@
         <div class="about-card-label dark">Backed by the Rotary Club of Lilongwe — chartered since 1970</div>
       </div>
     </div>
+
+    <div class="about-page-link">
+      <a href="/about">Learn More About Rotaract LIlongwe </a>
+    </div>
+
+
   </div>
 </section>
 
@@ -680,6 +686,16 @@
   .about-card-value.dark { color: var(--primary); }
   .about-card-label { font-family: 'Plus Jakarta Sans', sans-serif; font-weight:600; font-size: 13px; color: rgba(0, 0, 0, 0.6); line-height: 1.6; }
   .about-card-label.dark { color: rgba(255,255,255,.5); }
+  .about-page-link { margin-top: 12px;}
+  .about-page-link a { display: block; width: 100%; align-items: center; justify-content: center; min-height: 48px; padding: 14px 34px; border-radius: 100px; background: var(--primary); color: white; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; font-weight: 800; text-decoration: none; letter-spacing: .3px; box-shadow: 0 0 0 0 rgba(232,23,93,.38); animation: about-link-pulse 2s ease-out infinite; transition: transform .2s ease, box-shadow .2s ease; }
+  .about-page-link a:hover { transform: translateY(-2px); box-shadow: 0 12px 34px rgba(232,23,93,.28); }
+  .about-page-link a:focus-visible { outline: 3px solid rgba(232,23,93,.35); outline-offset: 4px; }
+  @keyframes about-link-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(232,23,93,.38); }
+    70% { box-shadow: 0 0 0 16px rgba(232,23,93,0); }
+    100% { box-shadow: 0 0 0 0 rgba(232,23,93,0); }
+  }
+  @media (prefers-reduced-motion: reduce) { .about-page-link a { animation: none; } }
 
   /* ── Avenues ───────────────────────────────────────────────────── */
   .avenues-section { background: var(--near-black); padding: 100px 5vw; }
@@ -776,9 +792,9 @@
   .events-carousel::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 4px; }
   .events-carousel::-webkit-scrollbar-thumb:hover { background: #aaa; }
 
-  .event-modal { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; padding: 24px; }
+  .event-modal { position: fixed; inset: 0; z-index: 300; display: flex; align-items: center; justify-content: center; padding: 24px; }
   .event-modal-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; background: rgba(0,0,0,.74); backdrop-filter: blur(8px); cursor: pointer; }
-  .event-modal-shell { position: relative; z-index: 1; width: min(680px, 100%); max-height: min(92vh, 960px); overflow-y: auto; background: var(--cream); border-radius: 4px; box-shadow: 0 30px 90px rgba(0,0,0,.42); touch-action: pan-y; }
+  .event-modal-shell { position: relative; z-index: 1; width: min(680px, 100%); max-height: 85vh; overflow-y: auto; background: var(--cream); border-radius: 4px; box-shadow: 0 30px 90px rgba(0,0,0,.42); touch-action: pan-y; }
   .event-modal-close { position: absolute; top: 12px; right: 12px; z-index: 2; width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: rgba(26,26,26,.86); color: white; cursor: pointer; transition: background .2s ease, transform .2s ease; }
   .event-modal-close:hover { background: var(--primary); transform: translateY(-1px); }
   .event-modal-poster-wrap { background: #111; padding: 18px; display: flex; align-items: center; justify-content: center; min-height: 320px; }
@@ -849,10 +865,10 @@
 
   @media (max-width: 640px) {
     .event-card { flex-basis: 280px; min-height: 360px; padding: 22px; }
-    .event-modal { padding: 12px; align-items: end; }
-    .event-modal-shell { width: 100%; max-height: 94vh; }
-    .event-modal-poster-wrap { min-height: 260px; padding: 12px; }
-    .event-modal-poster { max-height: 56vh; }
+    .event-modal { padding: 12px; }
+    .event-modal-shell { width: 100%; max-height: 90vh; }
+    .event-modal-poster-wrap { min-height: 200px; padding: 12px; }
+    .event-modal-poster { max-height: 45vh; }
     .event-modal-details-panel { padding: 22px; }
     .event-modal-controls { gap: 14px; }
   }
