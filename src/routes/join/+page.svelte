@@ -44,7 +44,6 @@
     <!-- Left panel -->
     <div class="join-brand">
       <div class="brand-inner">
-        <div class="brand-badge">MEMBERSHIP APPLICATION</div>
         <h1 class="brand-headline">BECOME A<br/><span class="brand-pink">CHANGEMAKER</span></h1>
         <p class="brand-sub">
           Join a community of young professionals dedicated to service, leadership, and professional development. Make a difference in Lilongwe and beyond.

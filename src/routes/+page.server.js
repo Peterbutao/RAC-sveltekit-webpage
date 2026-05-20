@@ -58,7 +58,14 @@ function createStorageClient() {
   const supabaseUrl = env.SUPABASE_URL ?? PUBLIC_SUPABASE_URL;
   const storageKey = env.SUPABASE_SERVICE_ROLE_KEY ?? PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl || !storageKey) return null;
+  if (!supabaseUrl) {
+    console.error('[CAROUSEL] SUPABASE_URL not configured. Check environment variables.');
+    return null;
+  }
+  if (!storageKey) {
+    console.error('[CAROUSEL] SUPABASE_SERVICE_ROLE_KEY or PUBLIC_SUPABASE_ANON_KEY not configured.');
+    return null;
+  }
 
   return createClient(supabaseUrl, storageKey, {
     auth: { persistSession: false }
@@ -79,31 +86,37 @@ async function fetchAboutTeamImages() {
   const supabase = createStorageClient();
 
   if (!supabase) {
-    console.error('Supabase storage client is not configured.');
+    console.error('[CAROUSEL] Supabase storage client is not configured. Carousel will show placeholder.');
     return [];
   }
 
-  const { data: files, error } = await supabase.storage
-    .from(ABOUT_TEAM_BUCKET)
-    .list(ABOUT_TEAM_FOLDER, {
-      limit: 100,
-      sortBy: { column: 'name', order: 'asc' }
-    });
+  try {
+    const { data: files, error } = await supabase.storage
+      .from(ABOUT_TEAM_BUCKET)
+      .list(ABOUT_TEAM_FOLDER, {
+        limit: 100,
+        sortBy: { column: 'name', order: 'asc' }
+      });
 
-  if (error) {
-    console.error('fetchAboutTeamImages failed:', error.message);
+    if (error) {
+      console.error(`[CAROUSEL] Failed to list storage files: ${error.message}`);
+      return cachedAboutTeamImages;
+    }
+
+    cachedAboutTeamImages = (files ?? [])
+      .filter((file) => ABOUT_TEAM_IMAGE_RE.test(file.name))
+      .map((file) => ({
+        src: `${ABOUT_TEAM_PUBLIC_URL}/${encodeURIComponent(file.name)}?width=${ABOUT_TEAM_IMAGE_WIDTH}&quality=${ABOUT_TEAM_IMAGE_QUALITY}&resize=cover`,
+        alt: imageAltFromFileName(file.name)
+      }));
+    cachedAboutTeamImagesUntil = now + ABOUT_TEAM_CACHE_MS;
+
+    console.log(`[CAROUSEL] Loaded ${cachedAboutTeamImages.length} team images`);
+    return cachedAboutTeamImages;
+  } catch (err) {
+    console.error('[CAROUSEL] Unexpected error loading images:', err);
     return cachedAboutTeamImages;
   }
-
-  cachedAboutTeamImages = (files ?? [])
-    .filter((file) => ABOUT_TEAM_IMAGE_RE.test(file.name))
-    .map((file) => ({
-      src: `${ABOUT_TEAM_PUBLIC_URL}/${encodeURIComponent(file.name)}?width=${ABOUT_TEAM_IMAGE_WIDTH}&quality=${ABOUT_TEAM_IMAGE_QUALITY}&resize=cover`,
-      alt: imageAltFromFileName(file.name)
-    }));
-  cachedAboutTeamImagesUntil = now + ABOUT_TEAM_CACHE_MS;
-
-  return cachedAboutTeamImages;
 }
 
 /** @type {import('./$types').PageServerLoad} */

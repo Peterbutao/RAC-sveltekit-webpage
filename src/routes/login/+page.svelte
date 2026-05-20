@@ -154,7 +154,7 @@
     <!-- Left panel -->
     <div class="login-brand">
       <div class="brand-inner">
-        <h1 class="brand-headline">YOUR IMPACT<br/><span class="brand-pink">STARTS HERE.</span></h1>
+        <!-- <h1 class="brand-headline">YOUR IMPACT<br/><span class="brand-pink">STARTS HERE.</span></h1> -->
       </div>
     </div>
 

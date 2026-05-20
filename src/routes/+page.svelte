@@ -149,14 +149,19 @@
 
   onMount(() => {
     const handler = () => { scrolled = window.scrollY > 60; };
-    const aboutTeamTimer = window.setInterval(() => {
-      showNextAboutTeamImage();
-    }, 4200);
+    
+    // Only start auto-advance timer if there are images
+    let aboutTeamTimer = null;
+    if (aboutTeamImages.length > 1) {
+      aboutTeamTimer = window.setInterval(() => {
+        showNextAboutTeamImage();
+      }, 4200);
+    }
 
     window.addEventListener('scroll', handler);
     return () => {
       window.removeEventListener('scroll', handler);
-      window.clearInterval(aboutTeamTimer);
+      if (aboutTeamTimer) window.clearInterval(aboutTeamTimer);
       document.body.style.overflow = '';
     };
   });
