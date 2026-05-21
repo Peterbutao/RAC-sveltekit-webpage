@@ -48,11 +48,30 @@
   let activeAboutTeamImageIndex = 0;
   let aboutTeamSwipeStartX = 0;
   let aboutTeamSwipeStartY = 0;
+  let aboutTeamTimer = null;
 
   $: activeEvent = selectedEventIndex === null ? null : EVENTS[selectedEventIndex] ?? null;
   $: aboutTeamImages = data.ABOUT_TEAM_IMAGES ?? [];
   $: if (aboutTeamImages.length && activeAboutTeamImageIndex >= aboutTeamImages.length) {
     activeAboutTeamImageIndex = 0;
+  }
+
+  // ── Setup carousel timer whenever images load ────────────────────────────
+  $: {
+    // Clear existing timer
+    if (aboutTeamTimer) {
+      window.clearInterval(aboutTeamTimer);
+      aboutTeamTimer = null;
+    }
+    
+    // Start new timer if we have multiple images
+    if (aboutTeamImages.length > 1) {
+      aboutTeamTimer = window.setInterval(() => {
+        if (aboutTeamImages.length > 0) {
+          showNextAboutTeamImage();
+        }
+      }, 4200);
+    }
   }
 
   const eventPoster = (event) => event?.fileName ? `/${event.fileName}` : '';
@@ -149,14 +168,6 @@
 
   onMount(() => {
     const handler = () => { scrolled = window.scrollY > 60; };
-    
-    // Only start auto-advance timer if there are images
-    let aboutTeamTimer = null;
-    if (aboutTeamImages.length > 1) {
-      aboutTeamTimer = window.setInterval(() => {
-        showNextAboutTeamImage();
-      }, 4200);
-    }
 
     window.addEventListener('scroll', handler);
     return () => {

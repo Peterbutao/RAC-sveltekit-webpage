@@ -14,6 +14,7 @@
   const PRIMARY      = '#E8175D';
   const DARK_MAGENTA = '#8B1045';
   const NEAR_BLACK   = '#1A1A1A';
+  const DUES_COLOR = { clear: '#2A9D8F', partial: PRIMARY, overdue: '#c0392b' };
 
   // ── View state ─────────────────────────────────────────────────────────────
   $: view = data.session ? 'dashboard' : 'login';
@@ -26,7 +27,8 @@
   $: successMessage = form?.success ? form.message : '';
 
   $: memberRacId = getRacNumberFromUser(data.user);
-  $: displayName = data.user?.user_metadata?.full_name ?? memberRacId ?? 'Member';
+  $: memberFullName = data.memberData?.full_name ?? data.user?.user_metadata?.full_name ?? 'Member';
+  $: displayName = memberFullName;
   $: avatarInitials = displayName
     .split(' ')
     .map((n) => n[0])
@@ -34,66 +36,50 @@
     .slice(0, 2)
     .toUpperCase();
 
-  // ── Mock member data ───────────────────────────────────────────────────────
-  const MEMBER = {
-    name:        'Chisomo Banda',
-    memberId:    '      ',
-    role:        'Active Member',
-    avatar:      'CB',
-    memberSince: 'March 2023',
-    dues: {
-      annual:    15000,
-      paid:      10000,
-      currency:  'MWK',
-      nextDue:   'July 1, 2025',
-      status:    'partial', // 'clear' | 'partial' | 'overdue'
-    },
-    committees: [
-      { name: 'Community Service',        role: 'Vice-Chair',  icon: '🌍', color: '#2A9D8F'    },
-      { name: 'Club Service',             role: 'Member',      icon: '🤝', color: PRIMARY       },
-      { name: 'Professional Development', role: 'Secretary',   icon: '💼', color: DARK_MAGENTA  },
-    ],
-    skills: [
-      { label: 'Project Management',   level: 85 },
-      { label: 'Public Speaking',      level: 72 },
-      { label: 'Event Coordination',   level: 90 },
-      { label: 'Fundraising',          level: 60 },
-      { label: 'Community Outreach',   level: 95 },
-      { label: 'Social Media',         level: 78 },
-    ],
-    attendance: { total: 24, attended: 19 },
-    volunteer:  { hours: 142, target: 200  },
-    points:     380,
+  function formatMemberSince(date) {
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+  }
+
+  function percent(part, total) {
+    if (!total || total <= 0) return 0;
+    return Math.min(100, Math.max(0, Math.round((part / total) * 100)));
+  }
+
+  function formatLabel(value, fallback = 'N/A') {
+    if (!value) return fallback;
+    return String(value)
+      .replace(/[_-]/g, ' ')
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  // ── Member data from database and sheets ───────────────────────────────────
+  $: dashboard = data.dashboardData ?? {};
+  $: MEMBER = {
+    name:        memberFullName,
+    memberId:    data.memberData?.rac_number ?? memberRacId ?? 'N/A',
+    role:        dashboard.role ?? 'Member',
+    avatar:      avatarInitials,
+    memberSince: formatMemberSince(data.memberData?.created_at),
+    status:      data.memberData?.status ?? 'active',
+    dues:        dashboard.dues,
+    committees:  dashboard.committees ?? [],
+    skills:      dashboard.skills ?? [],
+    attendance:  dashboard.attendance,
+    volunteer:   dashboard.volunteer,
+    points:      dashboard.points,
   };
 
-  const EVENTS = [
-    { name: 'Rotaract WEEK 2025',       date: 'June 14–20',   location: 'Lilongwe City',    type: 'flagship', rsvp: true  },
-    { name: 'Induction Ceremony',       date: 'July 5, 2025', location: 'Capital Hotel',    type: 'ceremony', rsvp: false },
-    { name: 'Youth Leadership Summit',  date: 'Aug 2, 2025',  location: 'BICC, Lilongwe',   type: 'summit',   rsvp: false },
-    { name: 'Community Clean-Up Drive', date: 'Aug 23, 2025', location: 'Area 25, Lilongwe',type: 'service',  rsvp: true  },
-  ];
-
-  const ANNOUNCEMENTS = [
-    { title: 'Dues Reminder',              body: 'Second instalment of MWK 5,000 due by 1 July. Pay via mobile money or at the treasurer\'s desk.', time: '2 days ago', icon: '📢', urgent: true  },
-    { title: 'Board Meeting — June 28',    body: 'Monthly board meeting at 10 AM, Capital Hotel Conference Room B. All committee chairs must attend.', time: '4 days ago', icon: '📅', urgent: false },
-    { title: 'Volunteer Recognition Night',body: 'Top volunteers will be recognised at the July induction. Check if you\'re on the list!',           time: '1 wk ago',  icon: '🏆', urgent: false },
-  ];
-
-  const ACTIVITY = [
-    { label: 'Checked in — Clean-Up Drive',           date: 'May 3, 2025',    pts: '+15' },
-    { label: 'Committee minutes submitted',            date: 'Apr 28, 2025',   pts: '+10' },
-    { label: 'Dues instalment paid — MWK 5,000',      date: 'Apr 15, 2025',   pts: '+20' },
-    { label: 'Attended Youth Leadership Workshop',     date: 'Mar 29, 2025',   pts: '+15' },
-    { label: 'Volunteered — Health Outreach Camp',     date: 'Mar 15, 2025',   pts: '+20' },
-  ];
+  $: DASHBOARD_EVENTS = dashboard.events ?? [];
+  $: ANNOUNCEMENTS = dashboard.announcements ?? [];
+  $: ACTIVITY = dashboard.activity ?? [];
 
   // ── Computed ───────────────────────────────────────────────────────────────
-  $: duesOwed     = MEMBER.dues.annual - MEMBER.dues.paid;
-  $: duesPct      = Math.round((MEMBER.dues.paid / MEMBER.dues.annual) * 100);
-  $: attendPct    = Math.round((MEMBER.attendance.attended / MEMBER.attendance.total) * 100);
-  $: volunteerPct = Math.round((MEMBER.volunteer.hours / MEMBER.volunteer.target) * 100);
-
-  const DUES_COLOR = { clear: '#2A9D8F', partial: PRIMARY, overdue: '#c0392b' };
+  $: duesOwed     = MEMBER.dues ? Math.max(0, MEMBER.dues.annual - MEMBER.dues.paid) : 0;
+  $: duesPct      = MEMBER.dues ? percent(MEMBER.dues.paid, MEMBER.dues.annual) : 0;
+  $: attendPct    = MEMBER.attendance ? percent(MEMBER.attendance.attended, MEMBER.attendance.total) : 0;
+  $: volunteerPct = MEMBER.volunteer ? percent(MEMBER.volunteer.hours, MEMBER.volunteer.target) : 0;
+  $: duesStatusColor = MEMBER.dues ? (DUES_COLOR[MEMBER.dues.status] ?? PRIMARY) : PRIMARY;
 
   let scrolled = false;
   onMount(() => {
@@ -258,12 +244,12 @@
       <div class="welcome-left">
         <div class="welcome-avatar">{avatarInitials}</div>
         <div>
-          <p class="welcome-greeting">{greeting}, <strong>{displayName.split(' ')[0]}</strong> 👋</p>
-          <p class="welcome-sub">{MEMBER.role} · {memberRacId ?? MEMBER.memberId}</p>
+          <p class="welcome-greeting">{greeting}, <strong>{displayName.split(' ')[0]}</strong> &#128075;</p>
+          <p class="welcome-sub">{MEMBER.role} - {MEMBER.memberId}</p>
         </div>
       </div>
       <div class="welcome-points-chip">
-        <span class="points-val">{MEMBER.points}</span>
+        <span class="points-val">{MEMBER.points ?? '--'}</span>
         <span class="points-label">Member Points</span>
       </div>    
     </div>
@@ -280,19 +266,31 @@
           <div class="kpi-icon" style="background:rgba(232,23,93,.1);color:{PRIMARY}">💳</div>
           <div>
             <p class="kpi-label">Membership Dues</p>
-            <p class="kpi-value" style="color:{DUES_COLOR[MEMBER.dues.status]}">
-              {MEMBER.dues.currency} {duesOwed.toLocaleString()} <span class="kpi-sub-label">outstanding</span>
+            <p class="kpi-value" style="color:{duesStatusColor}">
+              {#if MEMBER.dues}
+                {MEMBER.dues.currency} {duesOwed.toLocaleString()} <span class="kpi-sub-label">outstanding</span>
+              {:else}
+                Not recorded
+              {/if}
             </p>
           </div>
         </div>
         <div class="progress-track">
-          <div class="progress-fill" style="width:{duesPct}%;background:{DUES_COLOR[MEMBER.dues.status]}"></div>
+          <div class="progress-fill" style="width:{duesPct}%;background:{duesStatusColor}"></div>
         </div>
         <div class="kpi-footer-row">
-          <span class="kpi-footer-text">{duesPct}% paid · {MEMBER.dues.currency} {MEMBER.dues.paid.toLocaleString()} of {MEMBER.dues.annual.toLocaleString()}</span>
-          <span class="kpi-footer-text" style="color:{DUES_COLOR[MEMBER.dues.status]}">Due {MEMBER.dues.nextDue}</span>
+          <span class="kpi-footer-text">
+            {#if MEMBER.dues}
+              {duesPct}% paid - {MEMBER.dues.currency} {MEMBER.dues.paid.toLocaleString()} of {MEMBER.dues.annual.toLocaleString()}
+            {:else}
+              No dues balance available
+            {/if}
+          </span>
+          <span class="kpi-footer-text" style="color:{duesStatusColor}">{MEMBER.dues ? `Due ${MEMBER.dues.nextDue}` : 'Dues data has not been published yet'}</span>
         </div>
-        <button class="btn-pay">Pay Now →</button>
+        {#if MEMBER.dues}
+          <button class="btn-pay">Pay Now →</button>
+        {/if}
       </div>
 
       <!-- Attendance -->
@@ -301,13 +299,25 @@
           <div class="kpi-icon" style="background:rgba(42,157,143,.1);color:#2A9D8F">📋</div>
           <div>
             <p class="kpi-label">Meeting Attendance</p>
-            <p class="kpi-value" style="color:#2A9D8F">{MEMBER.attendance.attended}/{MEMBER.attendance.total}</p>
+            <p class="kpi-value" style="color:#2A9D8F">
+              {#if MEMBER.attendance}
+                {MEMBER.attendance.attended}/{MEMBER.attendance.total}
+              {:else}
+                Not recorded
+              {/if}
+            </p>
           </div>
         </div>
         <div class="progress-track">
           <div class="progress-fill" style="width:{attendPct}%;background:#2A9D8F"></div>
         </div>
-        <p class="kpi-footer-text">{attendPct}% attendance rate this year</p>
+        <p class="kpi-footer-text">
+          {#if MEMBER.attendance}
+            {attendPct}% attendance rate this year
+          {:else}
+            Attendance data has not been published yet
+          {/if}
+        </p>
       </div>
 
       <!-- Volunteer hours -->
@@ -316,13 +326,25 @@
           <div class="kpi-icon" style="background:rgba(139,16,69,.1);color:{DARK_MAGENTA}">⏱</div>
           <div>
             <p class="kpi-label">Volunteer Hours</p>
-            <p class="kpi-value" style="color:{DARK_MAGENTA}">{MEMBER.volunteer.hours} hrs</p>
+            <p class="kpi-value" style="color:{DARK_MAGENTA}">
+              {#if MEMBER.volunteer}
+                {MEMBER.volunteer.hours} hrs
+              {:else}
+                Not recorded
+              {/if}
+            </p>
           </div>
         </div>
         <div class="progress-track">
           <div class="progress-fill" style="width:{volunteerPct}%;background:{DARK_MAGENTA}"></div>
         </div>
-        <p class="kpi-footer-text">{volunteerPct}% of {MEMBER.volunteer.target}hr annual goal</p>
+        <p class="kpi-footer-text">
+          {#if MEMBER.volunteer}
+            {volunteerPct}% of {MEMBER.volunteer.target}hr annual goal
+          {:else}
+            Volunteer hours have not been published yet
+          {/if}
+        </p>
       </div>
 
       <!-- Member since -->
@@ -330,7 +352,7 @@
         <div class="kpi-icon-lg">🎓</div>
         <p class="kpi-label" style="margin-top:8px">Member Since</p>
         <p class="kpi-value" style="color:{NEAR_BLACK};font-size:18px">{MEMBER.memberSince}</p>
-        <div class="member-badge-chip">Active</div>
+        <div class="member-badge-chip">{formatLabel(MEMBER.status, 'Member')}</div>
       </div>
 
     </div>
@@ -348,16 +370,20 @@
             <span class="dash-card-count">{MEMBER.committees.length} active</span>
           </div>
           <div class="committees-list">
-            {#each MEMBER.committees as { name, role, icon, color }}
-              <div class="committee-row">
-                <div class="committee-icon" style="background:{color}18;color:{color}">{icon}</div>
-                <div class="committee-info">
-                  <p class="committee-name">{name}</p>
-                  <p class="committee-role" style="color:{color}">{role}</p>
+            {#if MEMBER.committees.length}
+              {#each MEMBER.committees as { name, role, icon, color }}
+                <div class="committee-row">
+                  <div class="committee-icon" style="background:{color}18;color:{color}">{icon}</div>
+                  <div class="committee-info">
+                    <p class="committee-name">{name}</p>
+                    <p class="committee-role" style="color:{color}">{role}</p>
+                  </div>
+                  <span class="committee-link">Assigned</span>
                 </div>
-                <a href="#" class="committee-link">View →</a>
-              </div>
-            {/each}
+              {/each}
+            {:else}
+              <div class="empty-state">Committee assignments are not available yet.</div>
+            {/if}
           </div>
         </div>
 
@@ -365,20 +391,26 @@
         <div class="dash-card">
           <div class="dash-card-header">
             <h3 class="dash-card-title">Skills Profile</h3>
-            <a href="#" class="dash-card-link">Edit</a>
+            <span class="dash-card-count">{MEMBER.skills.length} listed</span>
           </div>
           <div class="skills-list">
-            {#each MEMBER.skills as { label, level }}
-              <div class="skill-row">
-                <div class="skill-label-row">
-                  <span class="skill-label">{label}</span>
-                  <span class="skill-pct">{level}%</span>
+            {#if MEMBER.skills.length}
+              {#each MEMBER.skills as { label, level }}
+                <div class="skill-row">
+                  <div class="skill-label-row">
+                    <span class="skill-label">{label}</span>
+                    <span class="skill-pct">{typeof level === 'number' ? `${level}%` : 'From application'}</span>
+                  </div>
+                  {#if typeof level === 'number'}
+                    <div class="progress-track">
+                      <div class="progress-fill" style="width:{level}%;background:{level >= 80 ? PRIMARY : level >= 60 ? DARK_MAGENTA : '#999'}"></div>
+                    </div>
+                  {/if}
                 </div>
-                <div class="progress-track">
-                  <div class="progress-fill" style="width:{level}%;background:{level >= 80 ? PRIMARY : level >= 60 ? DARK_MAGENTA : '#999'}"></div>
-                </div>
-              </div>
-            {/each}
+              {/each}
+            {:else}
+              <div class="empty-state">No skills were found for this member yet.</div>
+            {/if}
           </div>
         </div>
 
@@ -394,16 +426,20 @@
             <span class="notif-dot"></span>
           </div>
           <div class="announcements-list">
-            {#each ANNOUNCEMENTS as { title, body, time, icon, urgent }}
-              <div class="announcement-row" class:urgent>
-                <div class="ann-icon">{icon}</div>
-                <div class="ann-body">
-                  <p class="ann-title">{title}</p>
-                  <p class="ann-text">{body}</p>
-                  <p class="ann-time">{time}</p>
+            {#if ANNOUNCEMENTS.length}
+              {#each ANNOUNCEMENTS as { title, body, time, icon, urgent }}
+                <div class="announcement-row" class:urgent>
+                  <div class="ann-icon">{icon}</div>
+                  <div class="ann-body">
+                    <p class="ann-title">{title}</p>
+                    <p class="ann-text">{body}</p>
+                    <p class="ann-time">{time}</p>
+                  </div>
                 </div>
-              </div>
-            {/each}
+              {/each}
+            {:else}
+              <div class="empty-state">No club announcements are available right now.</div>
+            {/if}
           </div>
         </div>
 
@@ -411,23 +447,27 @@
         <div class="dash-card">
           <div class="dash-card-header">
             <h3 class="dash-card-title">Upcoming Events</h3>
-            <a href="#" class="dash-card-link">View all</a>
+            <a href="/" class="dash-card-link">View all</a>
           </div>
           <div class="events-list">
-            {#each EVENTS as { name, date, location, type, rsvp }}
-              <div class="event-row">
-                <div class="event-type-dot" style="background:{type === 'flagship' ? PRIMARY : type === 'ceremony' ? DARK_MAGENTA : type === 'summit' ? '#F7A13A' : '#2A9D8F'}"></div>
-                <div class="event-info">
-                  <p class="event-name">{name}</p>
-                  <p class="event-meta-text">📅 {date} · 📍 {location}</p>
+            {#if DASHBOARD_EVENTS.length}
+              {#each DASHBOARD_EVENTS as { name, date, location, type, rsvp }}
+                <div class="event-row">
+                  <div class="event-type-dot" style="background:{type === 'flagship' ? PRIMARY : type === 'ceremony' ? DARK_MAGENTA : type === 'summit' ? '#F7A13A' : '#2A9D8F'}"></div>
+                  <div class="event-info">
+                    <p class="event-name">{name}</p>
+                    <p class="event-meta-text">{date}{location ? ` - ${location}` : ''}</p>
+                  </div>
+                  {#if rsvp}
+                    <span class="rsvp-chip">RSVP'd</span>
+                  {:else}
+                    <span class="event-tag-chip">{type}</span>
+                  {/if}
                 </div>
-                {#if rsvp}
-                  <span class="rsvp-chip">RSVP'd</span>
-                {:else}
-                  <button class="rsvp-btn">RSVP</button>
-                {/if}
-              </div>
-            {/each}
+              {/each}
+            {:else}
+              <div class="empty-state">No upcoming events were found in the events sheet.</div>
+            {/if}
           </div>
         </div>
 
@@ -437,16 +477,20 @@
             <h3 class="dash-card-title">Recent Activity</h3>
           </div>
           <div class="activity-list">
-            {#each ACTIVITY as { label, date, pts }}
-              <div class="activity-row">
-                <div class="activity-dot"></div>
-                <div class="activity-info">
-                  <p class="activity-label">{label}</p>
-                  <p class="activity-date">{date}</p>
+            {#if ACTIVITY.length}
+              {#each ACTIVITY as { label, date, meta }}
+                <div class="activity-row">
+                  <div class="activity-dot"></div>
+                  <div class="activity-info">
+                    <p class="activity-label">{label}</p>
+                    <p class="activity-date">{meta || 'Project update'}</p>
+                  </div>
+                  <span class="activity-pts">{date}</span>
                 </div>
-                <span class="activity-pts">{pts} pts</span>
-              </div>
-            {/each}
+              {/each}
+            {:else}
+              <div class="empty-state">No recent project updates were found in the projects sheet.</div>
+            {/if}
           </div>
         </div>
 
@@ -753,6 +797,16 @@
     color: var(--primary); font-weight: 700; text-decoration: none;
   }
   .dash-card-link:hover { text-decoration: underline; }
+  .empty-state {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #888;
+    background: #FAFAFA;
+    border: 1px solid #F0F0F0;
+    border-radius: 14px;
+    padding: 14px;
+  }
 
   /* Committees */
   .committees-list { display: flex; flex-direction: column; gap: 12px; }
@@ -822,14 +876,11 @@
     background: rgba(42,157,143,.12); color: #2A9D8F;
     padding: 4px 10px; border-radius: 100px; letter-spacing: .5px; white-space: nowrap;
   }
-  .rsvp-btn {
+  .event-tag-chip {
     font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 800;
-    background: var(--primary); color: white;
-    border: none; padding: 5px 12px; border-radius: 100px; cursor: pointer;
-    letter-spacing: .3px; transition: opacity .2s; white-space: nowrap;
+    background: rgba(232,23,93,.08); color: var(--primary);
+    padding: 4px 10px; border-radius: 100px; white-space: nowrap;
   }
-  .rsvp-btn:hover { opacity: .85; }
-
   /* Activity */
   .activity-list { display: flex; flex-direction: column; }
   .activity-row {

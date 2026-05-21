@@ -14,6 +14,17 @@ export const COLORS = {
 // Google Sheets
 export const SHEET_ID = '1kN76ZIpPbE5KhKvSA0lLtrCpdechOWT1qlhHT7DtmRg';
 
+export const SHEET_NAMES = {
+	EVENTS: 'EVENTS',
+	PROJECTS: 'PROJECTS',
+	MEMBERS: 'MEMBERS',
+	DUES: 'DUES',
+	ATTENDANCE: 'ATTENDANCE',
+	VOLUNTEER_HOURS: 'VOLUNTEER_HOURS',
+	COMMITTEES: 'COMMITTEES',
+	SKILLS: 'SKILLS'
+};
+
 // Carousel and images
 export const CAROUSEL_TIMINGS = {
 	ADVANCE_MS: 4200,

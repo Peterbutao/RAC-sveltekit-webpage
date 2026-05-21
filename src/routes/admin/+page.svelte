@@ -45,6 +45,22 @@
 		<p>Manage membership applications and assign RAC numbers</p>
 	</div>
 
+	{#if data.applicationCount > 0}
+		<div class="notification-banner">
+			<div class="notification-content">
+				<span class="notification-icon">📋</span>
+				<div class="notification-text">
+					<p class="notification-title">
+						{data.applicationCount} 
+						{data.applicationCount === 1 ? 'person' : 'people'} 
+						{data.applicationCount === 1 ? 'has' : 'have'} applied for membership
+					</p>
+					<p class="notification-subtitle">Review and assign RAC numbers below</p>
+				</div>
+			</div>
+		</div>
+	{/if}
+
 	{#if data.applications.length === 0}
 		<div class="empty-state">
 			<p>No pending applications</p>
@@ -258,6 +274,43 @@
 	.header p {
 		margin: 0;
 		color: #666;
+	}
+
+	.notification-banner {
+		background: linear-gradient(135deg, #e8175d 0%, #a8115e 100%);
+		color: white;
+		padding: 20px;
+		border-radius: 8px;
+		margin-bottom: 30px;
+		box-shadow: 0 4px 12px rgba(232, 23, 93, 0.2);
+	}
+
+	.notification-content {
+		display: flex;
+		align-items: flex-start;
+		gap: 15px;
+	}
+
+	.notification-icon {
+		font-size: 28px;
+		flex-shrink: 0;
+		line-height: 1;
+	}
+
+	.notification-text {
+		flex: 1;
+	}
+
+	.notification-title {
+		margin: 0 0 5px 0;
+		font-size: 16px;
+		font-weight: 600;
+	}
+
+	.notification-subtitle {
+		margin: 0;
+		font-size: 13px;
+		opacity: 0.9;
 	}
 
 	.empty-state {
@@ -504,6 +557,23 @@
 
 		.modal {
 			max-width: 100%;
+		}
+
+		.notification-content {
+			flex-direction: column;
+			gap: 10px;
+		}
+
+		.notification-icon {
+			font-size: 24px;
+		}
+
+		.notification-title {
+			font-size: 15px;
+		}
+
+		.notification-subtitle {
+			font-size: 12px;
 		}
 	}
 </style>

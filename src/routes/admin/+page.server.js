@@ -104,6 +104,7 @@ export async function load({ locals }) {
 
 	return {
 		applications: applications || [],
+		applicationCount: applications?.length || 0,
 		nextRacNumber: generateUserRacNumber(nextRacCount, currentYear),
 		nextRacCount
 	};
