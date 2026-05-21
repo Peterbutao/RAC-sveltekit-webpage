@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '$env/dynamic/private';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { Resend } from 'resend';
+import { APPS_SCRIPT_WEBHOOK_URL } from '$lib/constants.js';
 
 function createSupabaseAdmin() {
 	const supabaseUrl = env.SUPABASE_URL ?? PUBLIC_SUPABASE_URL;
@@ -108,6 +109,92 @@ export async function load({ locals }) {
 		nextRacNumber: generateUserRacNumber(nextRacCount, currentYear),
 		nextRacCount
 	};
+}
+
+/**
+ * Sync members from Supabase to Google Sheet via Apps Script
+ * @param {Object} supabase - Supabase admin client
+ * @returns {Promise<{success: boolean, message: string, count?: number, error?: string}>}
+ */
+async function syncMembersToGoogleSheet(supabase) {
+	try {
+		if (!APPS_SCRIPT_WEBHOOK_URL) {
+			return {
+				success: false,
+				message: 'Apps Script webhook URL not configured. Set APPS_SCRIPT_WEBHOOK_URL environment variable.',
+				error: 'Missing configuration'
+			};
+		}
+
+		// Fetch all members from Supabase
+		const { data: members, error } = await supabase
+			.from('members')
+			.select('full_name, rac_number, occupation, phone')
+			.neq('status', 'inactive');
+
+		if (error) {
+			throw new Error(`Supabase query failed: ${error.message}`);
+		}
+
+		if (!members || members.length === 0) {
+			return {
+				success: false,
+				message: 'No active members found to sync',
+				count: 0
+			};
+		}
+
+		// Format data for Google Sheet
+		const memberData = members.map(member => ({
+			name: member.full_name || '',
+			rac_number: member.rac_number || '',
+			occupation: member.occupation || '',
+			age: '', // age - not available in Supabase yet
+			phone_number: member.phone || ''
+		}));
+
+		// Call Apps Script webhook
+		const response = await fetch(APPS_SCRIPT_WEBHOOK_URL, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				action: 'syncMembers',
+				members: memberData
+			})
+		});
+
+		if (!response.ok) {
+			const error = await response.text();
+			throw new Error(`Apps Script error (${response.status}): ${error}`);
+		}
+
+		const result = await response.json();
+
+		if (result.success) {
+			return {
+				success: true,
+				message: result.message || `Successfully synced ${members.length} members to Google Sheet`,
+				count: members.length,
+				updatedRows: members.length
+			};
+		} else {
+			return {
+				success: false,
+				message: result.message || 'Failed to sync members',
+				error: result.error,
+				count: members.length
+			};
+		}
+	} catch (error) {
+		console.error('[Sync Members Error]', error.message);
+		return {
+			success: false,
+			message: 'Failed to sync members to Google Sheet',
+			error: error.message
+		};
+	}
 }
 
 /** @type {import('./$types').Actions} */
@@ -377,6 +464,36 @@ export const actions = {
 		} catch (error) {
 			console.error('Reject application error:', error);
 			return fail(500, { message: 'An error occurred while rejecting the application' });
+		}
+	},
+
+	syncMembers: async ({ locals: { safeGetSession } }) => {
+		const { session } = await safeGetSession();
+		if (!session) {
+			return fail(401, { message: 'Not authenticated' });
+		}
+
+		const supabase = createSupabaseAdmin();
+		if (!supabase) {
+			return fail(500, { message: 'Admin client not configured' });
+		}
+
+		const result = await syncMembersToGoogleSheet(supabase);
+		
+		if (result.success) {
+			return {
+				success: true,
+				message: result.message,
+				count: result.count,
+				updatedRows: result.updatedRows
+			};
+		} else {
+			return fail(400, {
+				success: false,
+				message: result.message,
+				error: result.error,
+				count: result.count
+			});
 		}
 	}
 };

@@ -14,6 +14,10 @@ export const COLORS = {
 // Google Sheets
 export const SHEET_ID = '1kN76ZIpPbE5KhKvSA0lLtrCpdechOWT1qlhHT7DtmRg';
 
+// Google Apps Script webhook for syncing members
+// Deploy your Apps Script as a web app and paste the URL here
+export const APPS_SCRIPT_WEBHOOK_URL = process.env.APPS_SCRIPT_WEBHOOK_URL || '';
+
 export const SHEET_NAMES = {
 	EVENTS: 'EVENTS',
 	PROJECTS: 'PROJECTS',
@@ -22,7 +26,8 @@ export const SHEET_NAMES = {
 	ATTENDANCE: 'ATTENDANCE',
 	VOLUNTEER_HOURS: 'VOLUNTEER_HOURS',
 	COMMITTEES: 'COMMITTEES',
-	SKILLS: 'SKILLS'
+	SKILLS: 'SKILLS',
+	DB_APPROVED: 'DB_APPROVED'
 };
 
 // Carousel and images

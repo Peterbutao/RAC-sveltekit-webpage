@@ -61,6 +61,14 @@
 		</div>
 	{/if}
 
+	<div class="toolbar">
+		<form method="POST" action="?/syncMembers" use:enhance>
+			<button type="submit" class="btn btn-secondary" title="Sync members to Google Sheet DB_APPROVED">
+				📊 Sync to Google Sheet
+			</button>
+		</form>
+	</div>
+
 	{#if data.applications.length === 0}
 		<div class="empty-state">
 			<p>No pending applications</p>
@@ -311,6 +319,40 @@
 		margin: 0;
 		font-size: 13px;
 		opacity: 0.9;
+	}
+
+	.toolbar {
+		display: flex;
+		gap: 10px;
+		margin-bottom: 30px;
+	}
+
+	.toolbar form {
+		display: inline;
+	}
+
+	.btn {
+		padding: 10px 16px;
+		border: none;
+		border-radius: 6px;
+		font-size: 14px;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all 0.3s ease;
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.btn-secondary {
+		background-color: #f0f0f0;
+		color: #333;
+		border: 1px solid #ddd;
+	}
+
+	.btn-secondary:hover {
+		background-color: #e0e0e0;
+		border-color: #999;
 	}
 
 	.empty-state {
