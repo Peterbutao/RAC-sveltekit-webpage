@@ -4,9 +4,23 @@ import { env } from '$env/dynamic/private';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { Resend } from 'resend';
 
+const APPLY_RATE_LIMITS = {
+	IP_WINDOW_MS: 60 * 60 * 1000,
+	IP_MAX_ATTEMPTS: 5,
+	EMAIL_WINDOW_MS: 24 * 60 * 60 * 1000,
+	EMAIL_MAX_ATTEMPTS: 2
+};
+
+/** @type {Map<string, number[]>} */
+const applyRateLimitStore = new Map();
+
+function cleanEnvValue(value) {
+	return typeof value === 'string' ? value.trim() : value;
+}
+
 function createSupabaseAdmin() {
-	const supabaseUrl = env.SUPABASE_URL ?? PUBLIC_SUPABASE_URL;
-	const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY;
+	const supabaseUrl = cleanEnvValue(env.SUPABASE_URL) || cleanEnvValue(PUBLIC_SUPABASE_URL);
+	const serviceRoleKey = cleanEnvValue(env.SUPABASE_SERVICE_ROLE_KEY);
 
 	if (!supabaseUrl || !serviceRoleKey) {
 		return null;
@@ -16,11 +30,12 @@ function createSupabaseAdmin() {
 }
 
 function createResendClient() {
-	if (!env.RESEND_API_KEY) {
+	const apiKey = cleanEnvValue(env.RESEND_API_KEY);
+	if (!apiKey) {
 		return null;
 	}
 
-	return new Resend(env.RESEND_API_KEY);
+	return new Resend(apiKey);
 }
 
 /**
@@ -36,6 +51,100 @@ function sanitizeInput(str) {
 		.replace(/\s+/g, ' '); // Normalize whitespace
 }
 
+function pruneRateLimitStore(now = Date.now()) {
+	const longestWindowMs = Math.max(APPLY_RATE_LIMITS.IP_WINDOW_MS, APPLY_RATE_LIMITS.EMAIL_WINDOW_MS);
+
+	for (const [key, attempts] of applyRateLimitStore.entries()) {
+		const recentAttempts = attempts.filter((timestamp) => now - timestamp < longestWindowMs);
+		if (recentAttempts.length === 0) {
+			applyRateLimitStore.delete(key);
+		} else {
+			applyRateLimitStore.set(key, recentAttempts);
+		}
+	}
+}
+
+function checkRateLimit(key, maxAttempts, windowMs, now = Date.now()) {
+	const attempts = (applyRateLimitStore.get(key) ?? []).filter((timestamp) => now - timestamp < windowMs);
+
+	if (attempts.length >= maxAttempts) {
+		const retryAfterMs = windowMs - (now - attempts[0]);
+		return {
+			allowed: false,
+			retryAfterMinutes: Math.max(1, Math.ceil(retryAfterMs / 60000))
+		};
+	}
+
+	attempts.push(now);
+	applyRateLimitStore.set(key, attempts);
+	return { allowed: true, retryAfterMinutes: 0 };
+}
+
+function getApplyRateLimitFailure({ ipAddress, email }) {
+	const now = Date.now();
+	pruneRateLimitStore(now);
+
+	const ipLimit = checkRateLimit(
+		`apply:ip:${ipAddress}`,
+		APPLY_RATE_LIMITS.IP_MAX_ATTEMPTS,
+		APPLY_RATE_LIMITS.IP_WINDOW_MS,
+		now
+	);
+
+	if (!ipLimit.allowed) {
+		return `Too many applications from this network. Please wait about ${ipLimit.retryAfterMinutes} minutes before trying again.`;
+	}
+
+	if (email) {
+		const emailLimit = checkRateLimit(
+			`apply:email:${email}`,
+			APPLY_RATE_LIMITS.EMAIL_MAX_ATTEMPTS,
+			APPLY_RATE_LIMITS.EMAIL_WINDOW_MS,
+			now
+		);
+
+		if (!emailLimit.allowed) {
+			return `Too many application attempts for this email address. Please wait about ${emailLimit.retryAfterMinutes} minutes before trying again.`;
+		}
+	}
+
+	return '';
+}
+
+async function verifyTurnstileToken(token, ipAddress) {
+	const secret = cleanEnvValue(env.TURNSTILE_SECRET_KEY);
+	if (!secret) return { success: true };
+
+	if (!token) {
+		return {
+			success: false,
+			message: 'Please complete the verification challenge before submitting your application.'
+		};
+	}
+
+	const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+		body: new URLSearchParams({
+			secret,
+			response: token,
+			remoteip: ipAddress
+		})
+	});
+
+	if (!response.ok) {
+		return {
+			success: false,
+			message: 'We could not verify the application challenge. Please try again.'
+		};
+	}
+
+	const result = await response.json();
+	return result.success
+		? { success: true }
+		: { success: false, message: 'Verification failed. Please refresh the page and try again.' };
+}
+
 /** @type {import('./$types').PageServerLoad} */
 export async function load() {
 	return {};
@@ -43,7 +152,7 @@ export async function load() {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
-	apply: async ({ request }) => {
+	apply: async ({ request, getClientAddress }) => {
 		const formData = await request.formData();
 		const fullName = sanitizeInput(String(formData.get('full_name') ?? ''));
 		const email = String(formData.get('email') ?? '').toLowerCase().trim();
@@ -52,6 +161,24 @@ export const actions = {
 		const occupation = sanitizeInput(String(formData.get('occupation') ?? ''));
 		const motivation = sanitizeInput(String(formData.get('motivation') ?? ''));
 		const skills = sanitizeInput(String(formData.get('skills') ?? ''));
+		const turnstileToken = String(formData.get('cf-turnstile-response') ?? '');
+		const ipAddress = getClientAddress();
+
+		const rateLimitMessage = getApplyRateLimitFailure({ ipAddress, email });
+		if (rateLimitMessage) {
+			return fail(429, {
+				message: rateLimitMessage,
+				mode: 'apply'
+			});
+		}
+
+		const captcha = await verifyTurnstileToken(turnstileToken, ipAddress);
+		if (!captcha.success) {
+			return fail(400, {
+				message: captcha.message,
+				mode: 'apply'
+			});
+		}
 
 		if (!fullName || !email || !phone || !age || !occupation || !motivation || !skills) {
 			return fail(400, { 

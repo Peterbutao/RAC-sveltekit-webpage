@@ -1,5 +1,7 @@
 <script>
   import { onMount } from 'svelte';
+  import emblaCarouselSvelte from 'embla-carousel-svelte';
+  import Autoplay from 'embla-carousel-autoplay';
   import logo from "$lib/assets/logo.png";
   import _3dlogo from "$lib/assets/3dlogo.png";
   import { Handshake, Globe2, Briefcase, Globe } from 'lucide-svelte';
@@ -20,6 +22,10 @@
 
   // ── Constants ────────────────────────────────────────────────────────────────
   const PRIMARY  = '#E8175D';
+  const ABOUT_TEAM_CAROUSEL_OPTIONS = { loop: true, align: 'center' };
+  const ABOUT_TEAM_CAROUSEL_PLUGINS = [
+    Autoplay({ delay: 4200, stopOnInteraction: false, stopOnMouseEnter: true })
+  ];
   const NAV_LINKS = [
     { label: 'Home', href: '/' },
     { label: 'About', href: '/about' },
@@ -46,32 +52,12 @@
   let touchStartY = 0;
   let aboutTeamImages = [];
   let activeAboutTeamImageIndex = 0;
-  let aboutTeamSwipeStartX = 0;
-  let aboutTeamSwipeStartY = 0;
-  let aboutTeamTimer = null;
+  let aboutTeamEmblaApi = null;
 
   $: activeEvent = selectedEventIndex === null ? null : EVENTS[selectedEventIndex] ?? null;
   $: aboutTeamImages = data.ABOUT_TEAM_IMAGES ?? [];
   $: if (aboutTeamImages.length && activeAboutTeamImageIndex >= aboutTeamImages.length) {
     activeAboutTeamImageIndex = 0;
-  }
-
-  // ── Setup carousel timer whenever images load ────────────────────────────
-  $: {
-    // Clear existing timer
-    if (aboutTeamTimer) {
-      window.clearInterval(aboutTeamTimer);
-      aboutTeamTimer = null;
-    }
-    
-    // Start new timer if we have multiple images
-    if (aboutTeamImages.length > 1) {
-      aboutTeamTimer = window.setInterval(() => {
-        if (aboutTeamImages.length > 0) {
-          showNextAboutTeamImage();
-        }
-      }, 4200);
-    }
   }
 
   const eventPoster = (event) => event?.fileName ? `/${event.fileName}` : '';
@@ -125,45 +111,28 @@
   }
 
   function showPreviousAboutTeamImage() {
-    if (aboutTeamImages.length === 0) return;
-    activeAboutTeamImageIndex = (activeAboutTeamImageIndex - 1 + aboutTeamImages.length) % aboutTeamImages.length;
+    aboutTeamEmblaApi?.scrollPrev();
   }
 
   function showNextAboutTeamImage() {
-    if (aboutTeamImages.length === 0) return;
-    activeAboutTeamImageIndex = (activeAboutTeamImageIndex + 1) % aboutTeamImages.length;
+    aboutTeamEmblaApi?.scrollNext();
   }
 
-  function handleAboutTeamSwipeStart(event) {
-    aboutTeamSwipeStartX = event.clientX;
-    aboutTeamSwipeStartY = event.clientY;
+  function updateAboutTeamImageIndex() {
+    if (!aboutTeamEmblaApi) return;
+    activeAboutTeamImageIndex = aboutTeamEmblaApi.selectedScrollSnap();
   }
 
-  function handleAboutTeamSwipeEnd(event) {
-    const diffX = event.clientX - aboutTeamSwipeStartX;
-    const diffY = event.clientY - aboutTeamSwipeStartY;
-
-    if (Math.abs(diffX) > 45 && Math.abs(diffX) > Math.abs(diffY)) {
-      diffX > 0 ? showPreviousAboutTeamImage() : showNextAboutTeamImage();
-    }
-
-    aboutTeamSwipeStartX = 0;
-    aboutTeamSwipeStartY = 0;
+  function handleAboutTeamEmblaInit(event) {
+    aboutTeamEmblaApi = event.detail;
+    updateAboutTeamImageIndex();
+    aboutTeamEmblaApi.on('select', updateAboutTeamImageIndex);
+    aboutTeamEmblaApi.on('reInit', updateAboutTeamImageIndex);
   }
 
-  function getAboutTeamSlideOffset(index) {
-    const total = aboutTeamImages.length;
-    if (total <= 1) return 0;
-
-    let offset = index - activeAboutTeamImageIndex;
-    if (offset > total / 2) offset -= total;
-    if (offset < -total / 2) offset += total;
-
-    return offset;
-  }
-
-  function shouldLoadAboutTeamImage(index) {
-    return Math.abs(getAboutTeamSlideOffset(index)) <= 1;
+  function scrollToAboutTeamImage(index) {
+    activeAboutTeamImageIndex = index;
+    aboutTeamEmblaApi?.scrollTo(index);
   }
 
   onMount(() => {
@@ -172,7 +141,6 @@
     window.addEventListener('scroll', handler);
     return () => {
       window.removeEventListener('scroll', handler);
-      if (aboutTeamTimer) window.clearInterval(aboutTeamTimer);
       document.body.style.overflow = '';
     };
   });
@@ -310,36 +278,48 @@
         From peri-urban development,health outreach camps, youth mentorship, and vocational skills programmes, we turn youth-led ideas into tangible change — right here in Lilongwe's communities and beyond.
       </p>
       <div class="about-team-carousel-wrap">
-        <div
-          class="about-team-carousel"
-          role="region"
-          aria-roledescription="carousel"
-          aria-label="Rotaract Club of Lilongwe team photos"
-          on:pointerdown={handleAboutTeamSwipeStart}
-          on:pointerup={handleAboutTeamSwipeEnd}
-          on:pointercancel={() => {
-            aboutTeamSwipeStartX = 0;
-            aboutTeamSwipeStartY = 0;
-          }}
-        >
-          {#if aboutTeamImages.length}
-            {#each aboutTeamImages as image, index}
-              {#if shouldLoadAboutTeamImage(index)}
-                <img
-                  class:active={index === activeAboutTeamImageIndex}
-                  src={image.src}
-                  alt={image.alt}
-                  loading={index === activeAboutTeamImageIndex ? 'eager' : 'lazy'}
-                  decoding="async"
-                  fetchpriority={index === activeAboutTeamImageIndex ? 'high' : 'low'}
-                  style:transform={`translateX(${getAboutTeamSlideOffset(index) * 100}%)`}
-                />
-              {/if}
-            {/each}
-          {:else}
+        {#if aboutTeamImages.length}
+          <div
+            class="about-team-carousel"
+            role="region"
+            aria-roledescription="carousel"
+            aria-label="Rotaract Club of Lilongwe team photos"
+            use:emblaCarouselSvelte={{
+              options: ABOUT_TEAM_CAROUSEL_OPTIONS,
+              plugins: aboutTeamImages.length > 1 ? ABOUT_TEAM_CAROUSEL_PLUGINS : []
+            }}
+            on:emblaInit={handleAboutTeamEmblaInit}
+          >
+            <div class="about-team-carousel-track">
+              {#each aboutTeamImages as image, index}
+                <div class="about-team-carousel-slide">
+                  <img
+                    src={image.src}
+                    alt={image.alt}
+                    loading={index === 0 ? 'eager' : 'lazy'}
+                    decoding="async"
+                    fetchpriority={index === 0 ? 'high' : 'low'}
+                  />
+                </div>
+              {/each}
+            </div>
+          </div>
+        {:else}
+          <div class="about-team-carousel" aria-hidden="true">
             <div class="about-team-carousel-placeholder" aria-hidden="true"></div>
-          {/if}
-        </div>
+          </div>
+        {/if}
+
+        {#if aboutTeamImages.length > 1}
+          <div class="about-team-carousel-controls" aria-label="Browse team photos">
+            <button type="button" aria-label="Previous team photo" on:click={showPreviousAboutTeamImage}>
+              <ChevronLeft size={18} />
+            </button>
+            <button type="button" aria-label="Next team photo" on:click={showNextAboutTeamImage}>
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        {/if}
 
         {#if aboutTeamImages.length > 1}
           <div class="about-team-carousel-dots" aria-label="Choose team photo">
@@ -349,7 +329,7 @@
                 class:active={index === activeAboutTeamImageIndex}
                 aria-label={`Show ${image.alt}`}
                 aria-current={index === activeAboutTeamImageIndex ? 'true' : undefined}
-                on:click={() => activeAboutTeamImageIndex = index}
+                on:click={() => scrollToAboutTeamImage(index)}
               ></button>
             {/each}
           </div>
@@ -790,11 +770,16 @@
   .section-pill { display: inline-block; background: rgba(232,23,93,.1); color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; font-weight: 700; padding: 4px 14px; border-radius: 100px; letter-spacing: 1.5px; margin-bottom: 24px; }
   .about-heading { font-family: 'Anton', sans-serif; font-size: clamp(44px, 6vw, 80px); color: var(--near-black); line-height: .9; margin-bottom: 32px; }
   .about-body { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 15px; color: rgba(26,26,26,.7); line-height: 1.8; margin-bottom: 20px; }
-  .about-team-carousel-wrap { margin: 0 0 28px; }
+  .about-team-carousel-wrap { margin: 0 0 28px; position: relative; }
   .about-team-carousel { position: relative; width: 100%; aspect-ratio: 16 / 10; overflow: hidden; border-radius: 8px; background: rgba(232,23,93,.08); box-shadow: 0 18px 46px rgba(26,26,26,.12); cursor: grab; touch-action: pan-y; user-select: none; }
   .about-team-carousel:active { cursor: grabbing; }
-  .about-team-carousel > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .58s ease; will-change: transform; }
-  .about-team-carousel > img.active { z-index: 1; }
+  .about-team-carousel-track { display: flex; height: 100%; }
+  .about-team-carousel-slide { flex: 0 0 100%; min-width: 0; position: relative; }
+  .about-team-carousel-slide img { display: block; width: 100%; height: 100%; object-fit:cover; object-position:center; }
+  .about-team-carousel-controls { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: center; padding: 0 12px; pointer-events: none; }
+  .about-team-carousel-controls button { width: 38px; height: 38px; border-radius: 999px; background: rgba(26,26,26,.58); color: white; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; pointer-events: auto; box-shadow: 0 8px 20px rgba(0,0,0,.18); }
+  .about-team-carousel-controls button:hover { background: var(--primary); }
+  .about-team-carousel-controls button:focus-visible { outline: 3px solid rgba(232,23,93,.35); outline-offset: 3px; }
   .about-team-carousel-dots { display: flex; justify-content: center; align-items: center; gap: 8px; padding-top: 14px; }
   .about-team-carousel-dots button { width: 9px; height: 9px; border-radius: 999px; background: rgba(26,26,26,.22); cursor: pointer; transition: width .2s ease, background .2s ease, transform .2s ease; }
   .about-team-carousel-dots button:hover { background: rgba(232,23,93,.6); transform: translateY(-1px); }
@@ -806,7 +791,7 @@
     100% { background-position: -100% 0; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .about-team-carousel > img,
+    .about-team-carousel-controls button,
     .about-team-carousel-dots button,
     .about-team-carousel-placeholder { transition: none; animation: none; }
   }

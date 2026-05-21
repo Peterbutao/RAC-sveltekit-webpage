@@ -1,5 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -10,6 +11,9 @@
 	let password = '';
 	let rejectReason = '';
 	let isSubmitting = false;
+	let activeTab = 'pending';
+	let isSyncing = false;
+	let syncStatus = null;
 
 	function openAssignModal(app) {
 		selectedApp = app;
@@ -32,116 +36,194 @@
 		isSubmitting = false;
 	}
 
-	function handleSuccess(message) {
+	function handleSuccess() {
 		closeModals();
-		// Reload data
 		window.location.reload();
+	}
+
+	function handleSyncSubmit() {
+		isSyncing = true;
+		syncStatus = null;
+
+		return async ({ result }) => {
+			isSyncing = false;
+			syncStatus = {
+				type: result.type === 'success' ? 'success' : 'error',
+				message: result.data?.message || result.data?.error || 'Unable to sync members to Google Sheets.'
+			};
+
+			if (result.type === 'success') {
+				activeTab = 'members';
+				await invalidateAll();
+			}
+		};
 	}
 </script>
 
 <div class="admin-container">
 	<div class="header">
 		<h1>Admin Dashboard</h1>
-		<p>Manage membership applications and assign RAC numbers</p>
+		<p>Manage membership applications, approve members, and sync DB_APPROVED.</p>
 	</div>
 
 	{#if data.applicationCount > 0}
 		<div class="notification-banner">
 			<div class="notification-content">
-				<span class="notification-icon">📋</span>
 				<div class="notification-text">
 					<p class="notification-title">
-						{data.applicationCount} 
-						{data.applicationCount === 1 ? 'person' : 'people'} 
+						{data.applicationCount}
+						{data.applicationCount === 1 ? 'person' : 'people'}
 						{data.applicationCount === 1 ? 'has' : 'have'} applied for membership
 					</p>
-					<p class="notification-subtitle">Review and assign RAC numbers below</p>
+					<p class="notification-subtitle">Review applications and assign RAC numbers from the pending tab.</p>
 				</div>
 			</div>
 		</div>
 	{/if}
 
-	<div class="toolbar">
-		<form method="POST" action="?/syncMembers" use:enhance>
-			<button type="submit" class="btn btn-secondary" title="Sync members to Google Sheet DB_APPROVED">
-				📊 Sync to Google Sheet
-			</button>
-		</form>
+	<div class="tabbar" role="tablist" aria-label="Admin sections">
+		<button
+			type="button"
+			class:active={activeTab === 'pending'}
+			role="tab"
+			aria-selected={activeTab === 'pending'}
+			on:click={() => (activeTab = 'pending')}
+		>
+			Pending Applications <span>{data.applicationCount}</span>
+		</button>
+		<button
+			type="button"
+			class:active={activeTab === 'members'}
+			role="tab"
+			aria-selected={activeTab === 'members'}
+			on:click={() => (activeTab = 'members')}
+		>
+			Members <span>{data.approvedMemberCount}</span>
+		</button>
 	</div>
 
-	{#if data.applications.length === 0}
-		<div class="empty-state">
-			<p>No pending applications</p>
+	{#if activeTab === 'pending'}
+		<div class="tab-panel" role="tabpanel" aria-label="Pending applications">
+			{#if data.applications.length === 0}
+				<div class="empty-state">
+					<p>No pending applications</p>
+				</div>
+			{:else}
+				<div class="applications-grid">
+					{#each data.applications as app (app.id)}
+						<div class="application-card">
+							<div class="card-header">
+								<h3>{app.full_name}</h3>
+								<span class="status-badge pending">Pending</span>
+							</div>
+
+							<div class="card-body">
+								<div class="field">
+									<span class="field-label">Email</span>
+									<p>{app.email}</p>
+								</div>
+								<div class="field">
+									<span class="field-label">Phone</span>
+									<p>{app.phone}</p>
+								</div>
+								<div class="field">
+									<span class="field-label">Age</span>
+									<p>{app.age}</p>
+								</div>
+								<div class="field">
+									<span class="field-label">Occupation</span>
+									<p>{app.occupation}</p>
+								</div>
+								<div class="field">
+									<span class="field-label">Motivation</span>
+									<p>{app.motivation}</p>
+								</div>
+								{#if app.skills}
+									<div class="field">
+										<span class="field-label">Skills</span>
+										<p>{app.skills}</p>
+									</div>
+								{/if}
+								<div class="field">
+									<span class="field-label">Applied</span>
+									<p>{new Date(app.submitted_at).toLocaleDateString()}</p>
+								</div>
+							</div>
+
+							<div class="card-footer">
+								<button class="btn btn-primary" on:click={() => openAssignModal(app)}>
+									Assign RAC Number
+								</button>
+								<button class="btn btn-danger" on:click={() => openRejectModal(app)}>
+									Reject
+								</button>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
 		</div>
 	{:else}
-		<div class="applications-grid">
-			{#each data.applications as app (app.id)}
-				<div class="application-card">
-					<div class="card-header">
-						<h3>{app.full_name}</h3>
-						<span class="status-badge pending">Pending</span>
-					</div>
-
-					<div class="card-body">
-						<div class="field">
-							<label>Email</label>
-							<p>{app.email}</p>
-						</div>
-						<div class="field">
-							<label>Phone</label>
-							<p>{app.phone}</p>
-						</div>
-						<div class="field">
-							<label>Age</label>
-							<p>{app.age}</p>
-						</div>
-						<div class="field">
-							<label>Occupation</label>
-							<p>{app.occupation}</p>
-						</div>
-						<div class="field">
-							<label>Motivation</label>
-							<p>{app.motivation}</p>
-						</div>
-						{#if app.skills}
-							<div class="field">
-								<label>Skills</label>
-								<p>{app.skills}</p>
-							</div>
-						{/if}
-						<div class="field">
-							<label>Applied</label>
-							<p>{new Date(app.submitted_at).toLocaleDateString()}</p>
-						</div>
-					</div>
-
-					<div class="card-footer">
-						<button
-							class="btn btn-primary"
-							on:click={() => openAssignModal(app)}
-						>
-							Assign RAC Number
-						</button>
-						<button
-							class="btn btn-danger"
-							on:click={() => openRejectModal(app)}
-						>
-							Reject
-						</button>
-					</div>
+		<div class="tab-panel" role="tabpanel" aria-label="Members from DB_APPROVED">
+			<div class="members-toolbar">
+				<div>
+					<h2>Approved Members</h2>
+					<p>Loaded from the DB_APPROVED sheet in Google Sheets.</p>
 				</div>
-			{/each}
+				<form method="POST" action="?/syncMembers" use:enhance={handleSyncSubmit}>
+					<button type="submit" class="btn btn-secondary sync-btn" disabled={isSyncing}>
+						{isSyncing ? 'Syncing...' : 'Sync to Google Sheet'}
+					</button>
+				</form>
+			</div>
+
+			{#if syncStatus}
+				<div class="form-alert" class:success={syncStatus.type === 'success'} class:error={syncStatus.type === 'error'}>
+					{syncStatus.message}
+				</div>
+			{/if}
+
+			{#if data.approvedMembers.length === 0}
+				<div class="empty-state">
+					<p>No approved members found in DB_APPROVED.</p>
+				</div>
+			{:else}
+				<div class="members-table-wrap">
+					<table class="members-table">
+						<thead>
+							<tr>
+								<th>Name</th>
+								<th>RAC Number</th>
+								<th>Occupation</th>
+								<th>Age</th>
+								<th>Phone</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each data.approvedMembers as member, index (`${member.rac_number}-${index}`)}
+								<tr>
+									<td>{member.name || member.full_name || '-'}</td>
+									<td>{member.rac_number || '-'}</td>
+									<td>{member.occupation || '-'}</td>
+									<td>{member.age || '-'}</td>
+									<td>{member.phone_number || member.phone || '-'}</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{/if}
 		</div>
 	{/if}
 </div>
 
-<!-- Assign RAC Modal -->
 {#if showAssignModal && selectedApp}
-	<div class="modal-overlay" on:click={closeModals}>
-		<div class="modal" on:click={(e) => e.stopPropagation()}>
+	<div class="modal-overlay">
+		<button type="button" class="modal-backdrop" aria-label="Close dialog" on:click={closeModals}></button>
+		<div class="modal" role="dialog" aria-modal="true" aria-labelledby="assign-title">
 			<div class="modal-header">
-				<h2>Assign RAC Number</h2>
-				<button class="close-btn" on:click={closeModals}>×</button>
+				<h2 id="assign-title">Assign RAC Number</h2>
+				<button class="close-btn" on:click={closeModals}>x</button>
 			</div>
 
 			<form
@@ -152,7 +234,7 @@
 					return async ({ result }) => {
 						isSubmitting = false;
 						if (result.type === 'success') {
-							handleSuccess(result.data.message);
+							handleSuccess();
 						}
 					};
 				}}
@@ -205,13 +287,13 @@
 	</div>
 {/if}
 
-<!-- Reject Application Modal -->
 {#if showRejectModal && selectedApp}
-	<div class="modal-overlay" on:click={closeModals}>
-		<div class="modal" on:click={(e) => e.stopPropagation()}>
+	<div class="modal-overlay">
+		<button type="button" class="modal-backdrop" aria-label="Close dialog" on:click={closeModals}></button>
+		<div class="modal" role="dialog" aria-modal="true" aria-labelledby="reject-title">
 			<div class="modal-header">
-				<h2>Reject Application</h2>
-				<button class="close-btn" on:click={closeModals}>×</button>
+				<h2 id="reject-title">Reject Application</h2>
+				<button class="close-btn" on:click={closeModals}>x</button>
 			</div>
 
 			<form
@@ -222,7 +304,7 @@
 					return async ({ result }) => {
 						isSubmitting = false;
 						if (result.type === 'success') {
-							handleSuccess(result.data.message);
+							handleSuccess();
 						}
 					};
 				}}
@@ -268,45 +350,34 @@
 	}
 
 	.header {
-		margin-bottom: 40px;
+		margin-bottom: 28px;
 		border-bottom: 2px solid #e8175d;
 		padding-bottom: 20px;
 	}
 
-	.header h1 {
+	.header h1,
+	.members-toolbar h2 {
 		margin: 0 0 10px 0;
 		color: #1a1a1a;
+	}
+
+	.header h1 {
 		font-size: 32px;
 	}
 
-	.header p {
+	.header p,
+	.members-toolbar p {
 		margin: 0;
 		color: #666;
 	}
 
 	.notification-banner {
-		background: linear-gradient(135deg, #e8175d 0%, #a8115e 100%);
+		background: #e8175d;
 		color: white;
-		padding: 20px;
+		padding: 18px 20px;
 		border-radius: 8px;
-		margin-bottom: 30px;
+		margin-bottom: 22px;
 		box-shadow: 0 4px 12px rgba(232, 23, 93, 0.2);
-	}
-
-	.notification-content {
-		display: flex;
-		align-items: flex-start;
-		gap: 15px;
-	}
-
-	.notification-icon {
-		font-size: 28px;
-		flex-shrink: 0;
-		line-height: 1;
-	}
-
-	.notification-text {
-		flex: 1;
 	}
 
 	.notification-title {
@@ -321,38 +392,70 @@
 		opacity: 0.9;
 	}
 
-	.toolbar {
+	.tabbar {
 		display: flex;
-		gap: 10px;
-		margin-bottom: 30px;
-	}
-
-	.toolbar form {
-		display: inline;
-	}
-
-	.btn {
-		padding: 10px 16px;
-		border: none;
-		border-radius: 6px;
-		font-size: 14px;
-		font-weight: 500;
-		cursor: pointer;
-		transition: all 0.3s ease;
-		display: inline-flex;
-		align-items: center;
 		gap: 8px;
+		border-bottom: 1px solid #ddd;
+		margin-bottom: 24px;
+		overflow-x: auto;
 	}
 
-	.btn-secondary {
-		background-color: #f0f0f0;
+	.tabbar button {
+		background: transparent;
+		border: 0;
+		border-bottom: 3px solid transparent;
+		color: #666;
+		cursor: pointer;
+		font: inherit;
+		font-weight: 700;
+		padding: 12px 14px;
+		white-space: nowrap;
+	}
+
+	.tabbar button.active {
+		border-color: #e8175d;
+		color: #1a1a1a;
+	}
+
+	.tabbar span {
+		background: #f1f1f1;
+		border-radius: 999px;
 		color: #333;
-		border: 1px solid #ddd;
+		display: inline-block;
+		font-size: 12px;
+		margin-left: 8px;
+		min-width: 24px;
+		padding: 3px 8px;
+		text-align: center;
 	}
 
-	.btn-secondary:hover {
-		background-color: #e0e0e0;
-		border-color: #999;
+	.tab-panel {
+		min-height: 280px;
+	}
+
+	.members-toolbar {
+		align-items: center;
+		display: flex;
+		justify-content: space-between;
+		gap: 16px;
+		margin-bottom: 16px;
+	}
+
+	.form-alert {
+		border-radius: 6px;
+		font-weight: 600;
+		margin-bottom: 16px;
+		padding: 12px 14px;
+	}
+
+	.form-alert.success {
+		background: #e8f6ef;
+		color: #17623a;
+	}
+
+	.form-alert.error {
+		background: #fde8eb;
+		color: #9f2030;
 	}
 
 	.empty-state {
@@ -385,6 +488,7 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+		gap: 12px;
 	}
 
 	.card-header h3 {
@@ -414,7 +518,7 @@
 		margin-bottom: 15px;
 	}
 
-	.field label {
+	.field-label {
 		display: block;
 		font-weight: bold;
 		color: #e8175d;
@@ -437,14 +541,21 @@
 	}
 
 	.btn {
-		flex: 1;
-		padding: 10px 15px;
+		align-items: center;
 		border: none;
 		border-radius: 4px;
 		cursor: pointer;
-		font-weight: 600;
+		display: inline-flex;
 		font-size: 14px;
-		transition: all 0.3s ease;
+		font-weight: 600;
+		gap: 8px;
+		justify-content: center;
+		padding: 10px 15px;
+		transition: all 0.2s ease;
+	}
+
+	.card-footer .btn {
+		flex: 1;
 	}
 
 	.btn:disabled {
@@ -459,7 +570,6 @@
 
 	.btn-primary:hover:not(:disabled) {
 		background: #a8115e;
-		transform: translateY(-2px);
 	}
 
 	.btn-danger {
@@ -469,7 +579,6 @@
 
 	.btn-danger:hover:not(:disabled) {
 		background: #c82333;
-		transform: translateY(-2px);
 	}
 
 	.btn-secondary {
@@ -479,6 +588,41 @@
 
 	.btn-secondary:hover:not(:disabled) {
 		background: #5a6268;
+	}
+
+	.sync-btn {
+		min-width: 168px;
+	}
+
+	.members-table-wrap {
+		border: 1px solid #ddd;
+		border-radius: 8px;
+		overflow-x: auto;
+	}
+
+	.members-table {
+		border-collapse: collapse;
+		min-width: 760px;
+		width: 100%;
+	}
+
+	.members-table th,
+	.members-table td {
+		border-bottom: 1px solid #eee;
+		padding: 13px 14px;
+		text-align: left;
+		vertical-align: top;
+	}
+
+	.members-table th {
+		background: #f9f9f9;
+		color: #1a1a1a;
+		font-size: 12px;
+		text-transform: uppercase;
+	}
+
+	.members-table tr:last-child td {
+		border-bottom: 0;
 	}
 
 	.modal-overlay {
@@ -495,6 +639,17 @@
 		padding: 20px;
 	}
 
+	.modal-backdrop {
+		background: transparent;
+		border: 0;
+		bottom: 0;
+		cursor: default;
+		left: 0;
+		position: absolute;
+		right: 0;
+		top: 0;
+	}
+
 	.modal {
 		background: white;
 		border-radius: 8px;
@@ -503,6 +658,8 @@
 		width: 100%;
 		max-height: 90vh;
 		overflow-y: auto;
+		position: relative;
+		z-index: 1;
 	}
 
 	.modal-header {
@@ -522,7 +679,7 @@
 	.close-btn {
 		background: none;
 		border: none;
-		font-size: 28px;
+		font-size: 24px;
 		cursor: pointer;
 		color: #666;
 		padding: 0;
@@ -597,17 +754,17 @@
 			grid-template-columns: 1fr;
 		}
 
+		.members-toolbar {
+			align-items: stretch;
+			flex-direction: column;
+		}
+
+		.sync-btn {
+			width: 100%;
+		}
+
 		.modal {
 			max-width: 100%;
-		}
-
-		.notification-content {
-			flex-direction: column;
-			gap: 10px;
-		}
-
-		.notification-icon {
-			font-size: 24px;
 		}
 
 		.notification-title {

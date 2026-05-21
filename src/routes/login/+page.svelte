@@ -116,7 +116,7 @@
     </div>
     {#if view === 'dashboard'}
       <div class="nav-member-chip">
-
+        <a href="/profile" class="nav-profile">👤 Profile</a>
         <form method="POST" action="?/logout" use:enhance>
           <button type="submit" class="nav-logout">Sign out</button>
         </form>

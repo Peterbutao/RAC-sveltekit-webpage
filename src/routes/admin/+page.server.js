@@ -3,11 +3,16 @@ import { createClient } from '@supabase/supabase-js';
 import { env } from '$env/dynamic/private';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { Resend } from 'resend';
-import { APPS_SCRIPT_WEBHOOK_URL } from '$lib/constants.js';
+import { SHEET_ID, SHEET_NAMES } from '$lib/constants.js';
+import { fetchSheet } from '$lib/server/csv.js';
+
+function cleanEnvValue(value) {
+	return typeof value === 'string' ? value.trim() : value;
+}
 
 function createSupabaseAdmin() {
-	const supabaseUrl = env.SUPABASE_URL ?? PUBLIC_SUPABASE_URL;
-	const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY;
+	const supabaseUrl = cleanEnvValue(env.SUPABASE_URL) || cleanEnvValue(PUBLIC_SUPABASE_URL);
+	const serviceRoleKey = cleanEnvValue(env.SUPABASE_SERVICE_ROLE_KEY);
 
 	if (!supabaseUrl || !serviceRoleKey) {
 		return null;
@@ -17,11 +22,70 @@ function createSupabaseAdmin() {
 }
 
 function createResendClient() {
-	if (!env.RESEND_API_KEY) {
+	const apiKey = cleanEnvValue(env.RESEND_API_KEY);
+	if (!apiKey) {
 		return null;
 	}
 
-	return new Resend(env.RESEND_API_KEY);
+	return new Resend(apiKey);
+}
+
+async function requireAdminSession(safeGetSession) {
+	const { session } = await safeGetSession();
+	if (!session) {
+		return { error: fail(401, { message: 'Not authenticated' }) };
+	}
+
+	const supabase = createSupabaseAdmin();
+	if (!supabase) {
+		return { error: fail(500, { message: 'Admin client not configured' }) };
+	}
+
+	const { data: member, error } = await supabase
+		.from('members')
+		.select('is_admin')
+		.eq('user_id', session.user.id)
+		.single();
+
+	if (error || !member?.is_admin) {
+		return { error: fail(403, { message: 'Admin access required' }) };
+	}
+
+	return { session, supabase };
+}
+
+function normalizeSheetKey(key) {
+	return String(key ?? '')
+		.trim()
+		.toLowerCase()
+		.replace(/\s+/g, ' ');
+}
+
+function getSheetValue(row, aliases) {
+	const entries = Object.entries(row ?? {});
+	for (const alias of aliases) {
+		const normalizedAlias = normalizeSheetKey(alias);
+		const exact = entries.find(([key]) => normalizeSheetKey(key) === normalizedAlias);
+		if (exact) return exact[1];
+	}
+
+	for (const alias of aliases) {
+		const normalizedAlias = normalizeSheetKey(alias);
+		const prefixed = entries.find(([key]) => normalizeSheetKey(key).startsWith(normalizedAlias));
+		if (prefixed) return prefixed[1];
+	}
+
+	return '';
+}
+
+function normalizeApprovedMember(row) {
+	return {
+		name: getSheetValue(row, ['name', 'full_name', 'full name']),
+		rac_number: getSheetValue(row, ['rac_number', 'rac number', 'rac']),
+		occupation: getSheetValue(row, ['occupation']),
+		age: getSheetValue(row, ['age']),
+		phone_number: getSheetValue(row, ['phone_number', 'phone number', 'phone'])
+	};
 }
 
 /**
@@ -69,12 +133,15 @@ export async function load({ locals }) {
 		redirect(303, '/login');
 	}
 
-	// Fetch pending applications
-	const { data: applications, error: appError } = await supabase
-		.from('join_applications')
-		.select('*')
-		.eq('status', 'pending')
-		.order('submitted_at', { ascending: false });
+	// Fetch pending applications and members from the approved Google Sheet.
+	const [{ data: applications, error: appError }, approvedMemberRows] = await Promise.all([
+		supabase
+			.from('join_applications')
+			.select('*')
+			.eq('status', 'pending')
+			.order('submitted_at', { ascending: false }),
+		fetchSheet(SHEET_ID, SHEET_NAMES.DB_APPROVED)
+	]);
 
 	if (appError) {
 		console.error('Error fetching applications:', appError);
@@ -106,6 +173,8 @@ export async function load({ locals }) {
 	return {
 		applications: applications || [],
 		applicationCount: applications?.length || 0,
+		approvedMembers: approvedMemberRows.map(normalizeApprovedMember),
+		approvedMemberCount: approvedMemberRows.length,
 		nextRacNumber: generateUserRacNumber(nextRacCount, currentYear),
 		nextRacCount
 	};
@@ -118,7 +187,9 @@ export async function load({ locals }) {
  */
 async function syncMembersToGoogleSheet(supabase) {
 	try {
-		if (!APPS_SCRIPT_WEBHOOK_URL) {
+		const webhookUrl = cleanEnvValue(env.APPS_SCRIPT_WEBHOOK_URL);
+
+		if (!webhookUrl) {
 			return {
 				success: false,
 				message: 'Apps Script webhook URL not configured. Set APPS_SCRIPT_WEBHOOK_URL environment variable.',
@@ -154,7 +225,7 @@ async function syncMembersToGoogleSheet(supabase) {
 		}));
 
 		// Call Apps Script webhook
-		const response = await fetch(APPS_SCRIPT_WEBHOOK_URL, {
+		const response = await fetch(webhookUrl, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'
@@ -165,12 +236,32 @@ async function syncMembersToGoogleSheet(supabase) {
 			})
 		});
 
+		const responseText = await response.text();
+		const contentType = response.headers.get('content-type') ?? '';
+
 		if (!response.ok) {
-			const error = await response.text();
-			throw new Error(`Apps Script error (${response.status}): ${error}`);
+			const isGoogleAccessDenied =
+				response.status === 403 &&
+				responseText.toLowerCase().includes('access denied');
+
+			if (isGoogleAccessDenied) {
+				return {
+					success: false,
+					message: 'Google Apps Script denied the sync request. Redeploy the Apps Script web app with "Execute as: Me" and "Who has access: Anyone", then update APPS_SCRIPT_WEBHOOK_URL with the latest /exec URL.',
+					error: 'Apps Script returned 403 Access denied',
+					count: members.length
+				};
+			}
+
+			throw new Error(`Apps Script error (${response.status}): ${responseText.slice(0, 500)}`);
 		}
 
-		const result = await response.json();
+		let result;
+		try {
+			result = JSON.parse(responseText);
+		} catch (parseError) {
+			throw new Error(`Apps Script returned a non-JSON response: ${contentType || 'unknown content type'}`);
+		}
 
 		if (result.success) {
 			return {
@@ -200,10 +291,8 @@ async function syncMembersToGoogleSheet(supabase) {
 /** @type {import('./$types').Actions} */
 export const actions = {
 	assignRac: async ({ request, locals: { safeGetSession } }) => {
-		const { session } = await safeGetSession();
-		if (!session) {
-			return fail(401, { message: 'Not authenticated' });
-		}
+		const admin = await requireAdminSession(safeGetSession);
+		if (admin.error) return admin.error;
 
 		const formData = await request.formData();
 		const applicationId = String(formData.get('application_id') ?? '');
@@ -214,10 +303,7 @@ export const actions = {
 			return fail(400, { message: 'Missing required fields' });
 		}
 
-		const supabase = createSupabaseAdmin();
-		if (!supabase) {
-			return fail(500, { message: 'Admin client not configured' });
-		}
+		const { supabase } = admin;
 
 		try {
 			// Fetch the application
@@ -365,10 +451,8 @@ export const actions = {
 	},
 
 	rejectApplication: async ({ request, locals: { safeGetSession } }) => {
-		const { session } = await safeGetSession();
-		if (!session) {
-			return fail(401, { message: 'Not authenticated' });
-		}
+		const admin = await requireAdminSession(safeGetSession);
+		if (admin.error) return admin.error;
 
 		const formData = await request.formData();
 		const applicationId = String(formData.get('application_id') ?? '');
@@ -378,10 +462,7 @@ export const actions = {
 			return fail(400, { message: 'Missing application ID' });
 		}
 
-		const supabase = createSupabaseAdmin();
-		if (!supabase) {
-			return fail(500, { message: 'Admin client not configured' });
-		}
+		const { supabase } = admin;
 
 		try {
 			const { data: application } = await supabase
@@ -468,17 +549,10 @@ export const actions = {
 	},
 
 	syncMembers: async ({ locals: { safeGetSession } }) => {
-		const { session } = await safeGetSession();
-		if (!session) {
-			return fail(401, { message: 'Not authenticated' });
-		}
+		const admin = await requireAdminSession(safeGetSession);
+		if (admin.error) return admin.error;
 
-		const supabase = createSupabaseAdmin();
-		if (!supabase) {
-			return fail(500, { message: 'Admin client not configured' });
-		}
-
-		const result = await syncMembersToGoogleSheet(supabase);
+		const result = await syncMembersToGoogleSheet(admin.supabase);
 		
 		if (result.success) {
 			return {

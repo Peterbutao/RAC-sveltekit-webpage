@@ -55,8 +55,8 @@ async function fetchSheet(name) {
 }
 
 function createStorageClient() {
-  const supabaseUrl = env.SUPABASE_URL ?? PUBLIC_SUPABASE_URL;
-  const storageKey = env.SUPABASE_SERVICE_ROLE_KEY ?? PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = (env.SUPABASE_URL ?? PUBLIC_SUPABASE_URL)?.trim();
+  const storageKey = (env.SUPABASE_SERVICE_ROLE_KEY ?? PUBLIC_SUPABASE_ANON_KEY)?.trim();
 
   if (!supabaseUrl) {
     console.error('[CAROUSEL] SUPABASE_URL not configured. Check environment variables.');

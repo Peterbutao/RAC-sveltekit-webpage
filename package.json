@@ -18,6 +18,8 @@
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.0",
+    "embla-carousel-autoplay": "^8.6.0",
+    "embla-carousel-svelte": "^8.6.0",
     "resend": "^6.12.3"
   }
 }

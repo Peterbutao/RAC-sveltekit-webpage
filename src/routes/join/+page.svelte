@@ -1,5 +1,6 @@
 <script>
   import { enhance } from '$app/forms';
+  import { env } from '$env/dynamic/public';
   import logo from "$lib/assets/logo.png";
 
   /** @type {import('./$types').PageData} */
@@ -10,9 +11,13 @@
 
   $: errorMessage = form?.message && !form?.success ? form.message : '';
   $: successMessage = form?.success ? form.message : '';
+  $: turnstileSiteKey = env.PUBLIC_TURNSTILE_SITE_KEY || '';
 </script>
 
 <svelte:head>
+  {#if turnstileSiteKey}
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  {/if}
   <title>Apply to Join — Rotaract Club of Lilongwe</title>
 </svelte:head>
 
@@ -137,6 +142,12 @@
               placeholder="e.g., Event planning, fundraising, graphic design..."
             ></textarea>
           </div>
+
+          {#if turnstileSiteKey}
+            <div class="captcha-wrap">
+              <div class="cf-turnstile" data-sitekey={turnstileSiteKey}></div>
+            </div>
+          {/if}
 
           {#if errorMessage}
             <div class="join-error">{errorMessage}</div>
@@ -314,6 +325,12 @@
     font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px;
     color: #c0392b; background: #fdf0f0; border: 1px solid #f5c6cb;
     padding: 10px 14px; border-radius: 10px; font-weight: 600;
+  }
+
+  .captcha-wrap {
+    display: flex;
+    justify-content: center;
+    min-height: 65px;
   }
 
   .btn-submit {
